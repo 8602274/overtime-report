@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.1';
+const APP_VERSION = 'v1.7.2';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -706,16 +706,29 @@ async function sendPart() {
   const rows = day.rows.filter(r => r.part === part);
   if (!rows.length) { toast(`명단에 ${part} 사람이 없습니다`); return; }
   if (dirty || !saved) { if (!save()) return; }
-  const o = {d: ds(cur), p: part, j: day.proj || '', r: rows.map(r => [r.name, r.on ? 1 : 0, r.time || '', r.work || '', r.note || ''])};
+  // 링크를 짧게 : 기본값과 다른 것만 (X 인 사람 · 시간/작업/비고를 바꾼 사람) — 긴 링크는 카톡이 링크로 안 바꿔 줌
+  const isDef = r => { const p = rosterOf(r.name); return r.time === (p.time || DEF_TIME) && (r.work || '') === (p.work || '') && !r.note && data.roster.some(q => q.name === r.name); };
+  const o = {v: 2, d: ds(cur).replace(/-/g, ''), p: part,
+    x: rows.filter(r => !r.on).map(r => r.name),
+    c: rows.filter(r => r.on && !isDef(r)).map(r => [r.name, r.time || '', r.work || '', r.note || ''])};
+  if (!o.x.length) delete o.x; if (!o.c.length) delete o.c;
   const url = linkBase() + '#m=' + await packZ(o);
   const on = rows.filter(r => r.on);
-  const text = [`[연장근무 ${part}] ${cur.getMonth() + 1}/${cur.getDate()}(${WD[cur.getDay()]}) O ${on.length}명 / ${rows.length}명`]
-    .concat(on.map(r => `· ${r.name} ${r.time || ''} ${r.work || ''}`.trim()))
+  const text = [`[연장근무 ${part}] ${cur.getMonth() + 1}/${cur.getDate()}(${WD[cur.getDay()]}) O ${on.length}명 / ${rows.length}명`,
+    '▼ 집계자는 이 링크를 누르세요', url, '']
     .concat(rows.filter(r => !r.on).length ? [`X : ${rows.filter(r => !r.on).map(r => r.name).join(', ')}`] : [])
-    .concat(['', '▼ 집계용 링크 (눌러서 합치기)', url]).join('\n');
+    .concat(on.map(r => `· ${r.name} ${r.time || ''} ${r.work || ''}`.trim())).join('\n');
   shareText(text, `📨 ${part} → 집계자에게 보내기`);
 }
 function receivePart(o) {
+  if (o.v === 2) {   // 짧은 형식 → 이 폰 명단의 그 파트 사람 기본값에서 다시 만듦
+    o.d = o.d.replace(/^(\d{4})(\d\d)(\d\d)$/, '$1-$2-$3');
+    const x = new Set(o.x || []), c = {}; (o.c || []).forEach(a => c[a[0]] = a);
+    o.r = data.roster.filter(p => p.part === o.p).map(p => [p.name, x.has(p.name) ? 0 : 1, p.time || DEF_TIME, p.work || '', '']);
+    o.r.forEach(r => { const a = c[r[0]]; if (a) { r[2] = a[1]; r[3] = a[2]; r[4] = a[3]; delete c[r[0]]; } });
+    Object.values(c).forEach(a => o.r.push([a[0], 1, a[1], a[2], a[3]]));
+    (o.x || []).forEach(n => { if (!o.r.some(r => r[0] === n)) o.r.push([n, 0, '', '', '']); });
+  }
   const d = fromDs(o.d), rs = o.r || [];
   if (!confirm(`${label(d)} [${o.p}] ${rs.length}명 (O ${rs.filter(x => x[1]).length}명) 을 합칠까요?`)) return;
   if (dirty && ds(d) !== ds(cur) && confirm(`${label(cur)} 바뀐 내용을 먼저 저장할까요?`)) save();
