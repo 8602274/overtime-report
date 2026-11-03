@@ -66,6 +66,10 @@ input,textarea{font:inherit;color:inherit}
 .cnt .sp{flex:1}
 .cnt button{height:36px;padding:0 12px;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:14px}
 .cnt{gap:6px}
+.top h1 .me:empty{display:none}
+.top h1 .me{font-size:12px;font-weight:700;background:#fff;color:var(--main);padding:3px 8px;border-radius:999px}
+.recv{margin:8px 12px 0;padding:8px 12px;border-radius:12px;background:#eef4ff;color:#1e3a8a;font-size:14px;line-height:1.5}
+.recv b{color:#0b5b2e}.recv span{color:#a8a29e}
 @media (max-width:400px){.cnt button{padding:0 8px;font-size:13px}.cnt .big{font-size:20px}}
 .cnt .addp{color:#0b5b2e;border-color:#9fd3b2;font-weight:700}
 .cnt .delp{color:var(--red);border-color:#f0b4b4;font-weight:700}
@@ -147,7 +151,7 @@ input,textarea{font:inherit;color:inherit}
 <body>
 
 <div class="top">
-  <h1>🌙 연장근무 보고 <span class="sp"></span><button id="bCal" aria-label="달력">📅</button></h1>
+  <h1>🌙 연장근무 보고 <span class="me" id="meBadge"></span><span class="sp"></span><button id="bCal" aria-label="달력">📅</button></h1>
   <div class="dnav">
     <button class="arw" id="bPrev" aria-label="전날">◀</button>
     <label class="dbox"><span id="dText"></span><input type="date" id="dPick"></label>
@@ -158,13 +162,14 @@ input,textarea{font:inherit;color:inherit}
 
 <div class="state empty" id="state"></div>
 <button class="prevbtn" id="bLoadPrev"></button>
+<div class="recv" id="recv" style="display:none"></div>
 
 <div class="card">
   <div class="f"><label>공사명</label><input id="proj" placeholder="예) PETRONAS #3 ZLNG"></div>
 </div>
 
 <div class="cnt">
-  <span>연장·특근</span><span class="big" id="onCnt">0명</span><span class="sp"></span>
+  <span id="cntLbl">연장·특근</span><span class="big" id="onCnt">0명</span><span class="sp"></span>
   <button id="bAddP" class="addp">＋ 추가</button>
   <button id="bDelP" class="delp">－ 삭제</button>
   <button id="bOnlyOn">O만 보기</button>
@@ -184,7 +189,10 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.6.2';
+const APP_VERSION = 'v1.7.0';
+// 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
+const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
+if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
 const KEY = 'overtime-report-v1';
 const WD = '일월화수목금토';
 const DEF_TIMES = ['17:30~19:30', '17:30~20:30', '17:30~21:00', '17:30~21:30', '17:30~22:00'];
@@ -252,7 +260,7 @@ function dayFrom(src, keepOn = true) {
   const s = src || {};
   const rows = mergeRows(s.rows);
   if (!keepOn) rows.forEach(r => { r.on = false; });
-  return {proj: s.proj ?? data.proj ?? '', title: s.title || '', defTime: s.defTime || '', defWork: s.defWork || '', special: s.special || '', rows};
+  return {proj: s.proj ?? data.proj ?? '', title: s.title || '', defTime: s.defTime || '', defWork: s.defWork || '', special: s.special || '', recv: s.recv || null, rows};
 }
 
 /* ───── 화면 상태 ───── */
@@ -268,7 +276,7 @@ function showDate(d) {
     // 새 날 기본 = 전원 O · 사람별 기본 시간·작업내용 · 공사명·제목은 직전 저장일 것
     srcKey = prevSource(d);
     day = dayFrom(srcKey ? data.days[srcKey] : null);
-    day.special = ''; day.defTime = ''; day.defWork = '';
+    day.special = ''; day.defTime = ''; day.defWork = ''; day.recv = null;
     day.rows.forEach(r => { const p = rosterOf(r.name); r.on = true; r.time = p.time || DEF_TIME; r.work = p.work || ''; r.note = ''; });
     saved = false;
   }
@@ -342,8 +350,17 @@ function renderList() {
 }
 
 function calc() {
-  const n = onRows().length;
+  const me = myPart();
+  const n = me ? onRows().filter(r => r.part === me).length : onRows().length;
   $('onCnt').textContent = `${n}명`;
+  $('cntLbl').textContent = me ? `${me} 연장·특근` : '연장·특근';
+  $('bShare').textContent = me ? `📨 ${me} 보내기` : '📤 카톡';
+  $('meBadge').textContent = me ? `${me} 담당` : '';
+  const rc = $('recv'), parts = partsOf();
+  if (!me && day.recv && parts.length > 1) {
+    rc.style.display = 'block';
+    rc.innerHTML = '받은 파트 : ' + parts.map(p => day.recv[p] ? `<b>${esc(p)} ✔ ${day.recv[p]}</b>` : `<span>${esc(p)} 대기</span>`).join(' · ');
+  } else rc.style.display = 'none';
   $('bOnlyOn').textContent = onlyOn ? '전체 보기' : 'O만 보기';
   const st = $('state');
   if (dirty) { st.className = 'state dirty'; st.textContent = '✏️ 바뀐 내용이 있습니다 — [💾 저장] 을 누르세요'; }
@@ -488,6 +505,9 @@ $('sheetBg').onclick = closeSheet;
 
 $('bMore').onclick = () => {
   openSheet(`<h2>메뉴</h2>
+  <button class="item" id="mMe"><span class="ic">🙋</span><span>이 폰 담당 정하기<small>지금 : ${myPart() ? esc(myPart()) + ' 담당' : '집계자 (전체 보고)'}</small></span></button>
+  <button class="item" id="mPaste"><span class="ic">📥</span><span>받은 링크 붙여넣기<small>파트 링크가 앱으로 바로 안 열릴 때</small></span></button>
+  <button class="item" id="mLink"><span class="ic">🔗</span><span>명단 링크 보내기<small>파트 담당 폰에 명단 넣어 주기 (카톡)</small></span></button>
   <button class="item" id="mCal"><span class="ic">📅</span><span>달력에서 날짜 고르기<small>저장한 날은 주황 · 숫자 = O 인원</small></span></button>
   <button class="item" id="mPrev"><span class="ic">📋</span><span>전일 내용 다시 불러오기</span></button>
   <button class="item" id="mAllO"><span class="ic">⭕</span><span>이 날 전원 O 로<small>시간·작업은 사람별 기본값</small></span></button>
@@ -501,6 +521,9 @@ $('bMore').onclick = () => {
   <button class="item danger" id="mDel"><span class="ic">🗑</span><span>이 날짜 기록 지우기</span></button>
   <div class="hint" style="margin-top:10px">연장근무 보고 ${APP_VERSION} · 저장된 날 ${Object.keys(data.days).length}일 · 자료는 이 폰 안에만 저장됩니다
   <button class="btn2" style="padding:4px 10px;border-radius:8px;margin-left:6px" id="mUpd">업데이트 확인</button></div>`);
+  $('mMe').onclick = mySheet;
+  $('mPaste').onclick = pasteSheet;
+  $('mLink').onclick = rosterLinkSheet;
   $('mCal').onclick = () => calSheet(cur.getFullYear(), cur.getMonth());
   $('mPrev').onclick = () => { closeSheet(); loadPrev(); };
   $('mAllO').onclick = () => { closeSheet(); day.rows.forEach(r => { if (!r.on) { const ro = rosterOf(r.name); r.on = true; r.time = r.time || ro.time || DEF_TIME; r.work = r.work || ro.work || ''; } }); touch(); renderList(); };
@@ -624,20 +647,113 @@ function b64uBytes(s) {
   s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
   return Uint8Array.from(atob(s), c => c.charCodeAt(0));
 }
-async function hashRoster() {   // #r= : base64url JSON · #z= : deflate 압축 (QR 을 작게)
-  const m = /[#&]([rz])=([^&]+)/.exec(location.hash); if (!m) return;
-  history.replaceState(null, '', location.pathname + location.search);
+async function unpackZ(s) {
+  const b = b64uBytes(s);
+  return JSON.parse(await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+}
+async function packZ(obj) {
+  const b = new Uint8Array(await new Response(new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+  let bin = ''; b.forEach(c => bin += String.fromCharCode(c));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+const PAGE_URL = 'https://8602274.github.io/overtime-report/';
+const linkBase = () => location.protocol.startsWith('http') ? location.origin + location.pathname : PAGE_URL;
+
+async function handleLink(hash) {   // #r= / #z= : 명단 · #m= : 파트 입력 합치기
+  const m = /[#&]([rzm])=([^&\s]+)/.exec(hash); if (!m) return false;
   let o;
-  try {
-    const b = b64uBytes(m[2]);
-    const txt = m[1] === 'z' ? await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text() : new TextDecoder().decode(b);
-    o = JSON.parse(txt);
-  } catch { alert('QR 명단을 읽지 못했습니다'); return; }
+  try { o = m[1] === 'r' ? JSON.parse(new TextDecoder().decode(b64uBytes(m[2]))) : await unpackZ(m[2]); }
+  catch { alert('링크를 읽지 못했습니다 — 끝까지 다 복사됐는지 확인하세요'); return true; }
+  if (m[1] === 'm') { receivePart(o); return true; }
   const list = (o.r || []).map(([name, part, time, work]) => ({name, part, time: time || '', work: work || ''}));
   list.forEach(p => { rememberTime(p.time); rememberWork(p.work); });
-  if (!list.length) return;
-  if (data.roster.length && !confirm(`QR 명단 ${list.length}명으로 바꿀까요?\n(지금 명단 ${data.roster.length}명)`)) return;
-  setRoster(list, o.p); toast(`명단 ${list.length}명을 받았습니다`);
+  if (!list.length) return true;
+  if (data.roster.length && !confirm(`받은 명단 ${list.length}명으로 바꿀까요?\n(지금 명단 ${data.roster.length}명)`)) return true;
+  if ('m' in o) { data.myPart = o.m || ''; partFilter = data.myPart; }
+  setRoster(list, o.p); calc();
+  toast(`명단 ${list.length}명을 받았습니다${o.m ? ` · 내 파트 = ${o.m}` : ''}`);
+  return true;
+}
+async function hashRoster() {
+  if (inKakao) return;
+  const h = location.hash; if (!h || h.length < 4) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  await handleLink(h);
+}
+window.addEventListener('hashchange', hashRoster);
+
+/* ───── 파트별 입력 → 카톡 링크 → 집계자 폰에서 하나로 합치기 ───── */
+const myPart = () => data.myPart || '';
+async function shareText(text, done) {
+  if (navigator.share) { try { await navigator.share({text}); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(text); toast(done || '복사했습니다 — 카톡에 붙여 넣으세요'); }
+  catch { openSheet(`<h2>복사해서 카톡에 붙여 넣으세요</h2><textarea style="width:100%;height:200px">${esc(text)}</textarea><div class="btnrow"><button class="btn2" onclick="closeSheet()">닫기</button></div>`); }
+}
+async function sendPart() {
+  const part = myPart();
+  const rows = day.rows.filter(r => r.part === part);
+  if (!rows.length) { toast(`명단에 ${part} 사람이 없습니다`); return; }
+  if (dirty || !saved) { if (!save()) return; }
+  const o = {d: ds(cur), p: part, j: day.proj || '', r: rows.map(r => [r.name, r.on ? 1 : 0, r.time || '', r.work || '', r.note || ''])};
+  const url = linkBase() + '#m=' + await packZ(o);
+  const on = rows.filter(r => r.on);
+  const text = [`[연장근무 ${part}] ${cur.getMonth() + 1}/${cur.getDate()}(${WD[cur.getDay()]}) O ${on.length}명 / ${rows.length}명`]
+    .concat(on.map(r => `· ${r.name} ${r.time || ''} ${r.work || ''}`.trim()))
+    .concat(rows.filter(r => !r.on).length ? [`X : ${rows.filter(r => !r.on).map(r => r.name).join(', ')}`] : [])
+    .concat(['', '▼ 집계용 링크 (눌러서 합치기)', url]).join('\n');
+  shareText(text, `${part} 내용을 복사했습니다 — 카톡에 붙여 넣으세요`);
+}
+function receivePart(o) {
+  const d = fromDs(o.d), rs = o.r || [];
+  if (!confirm(`${label(d)} [${o.p}] ${rs.length}명 (O ${rs.filter(x => x[1]).length}명) 을 합칠까요?`)) return;
+  if (dirty && ds(d) !== ds(cur) && confirm(`${label(cur)} 바뀐 내용을 먼저 저장할까요?`)) save();
+  showDate(d);
+  const by = {}; day.rows.forEach(r => by[r.name] = r);
+  rs.forEach(([name, on, time, work, note]) => {
+    let r = by[name];
+    if (!r) { r = {name, part: o.p}; day.rows.push(r); }
+    Object.assign(r, {on: !!on, time: time || '', work: work || '', note: note || ''});
+  });
+  if (!day.proj && o.j) day.proj = o.j;
+  const now = new Date();
+  day.recv = {...(day.recv || {}), [o.p]: `${pad(now.getHours())}:${pad(now.getMinutes())}`};
+  data.days[ds(cur)] = {...clone(day), saved_at: `${ds(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}`};
+  persist(); saved = true; dirty = false;
+  render(); toast(`[${o.p}] 합쳤습니다 — 전체 O ${onRows().length}명`);
+}
+function partsOf() { return [...new Set(data.roster.map(p => p.part).filter(Boolean))]; }
+function mySheet() {
+  const parts = partsOf(), me = myPart();
+  openSheet(`<h2>🙋 이 폰은 누가 쓰나요?</h2><div class="hint">파트 담당 = 자기 파트만 보고 [📨 보내기] 로 집계자에게 카톡 링크를 보냅니다.<br>집계자 = 받은 링크를 누르면 하나로 합쳐지고, 전체 보고를 카톡·엑셀로 올립니다.</div>
+    <button class="item" data-me=""><span class="ic">${me ? '○' : '●'}</span><span>집계자 (전체 보고)</span></button>
+    ${parts.map(p => `<button class="item" data-me="${esc(p)}"><span class="ic">${me === p ? '●' : '○'}</span><span>${esc(p)} 담당</span></button>`).join('')}`);
+  $('sheet').onclick = e => {
+    const b = e.target.closest('[data-me]'); if (!b) return;
+    $('sheet').onclick = null;
+    data.myPart = b.dataset.me; persist(); partFilter = data.myPart; closeSheet(); render();
+    toast(data.myPart ? `${data.myPart} 담당으로 정했습니다` : '집계자로 정했습니다');
+  };
+}
+function rosterLinkSheet() {
+  const parts = partsOf();
+  openSheet(`<h2>🔗 명단 링크 보내기</h2><div class="hint">받을 사람을 고르면 명단이 든 링크를 카톡으로 보냅니다. 받은 사람이 링크를 누르면 명단이 들어가고 담당 파트도 정해집니다.</div>
+    ${parts.map(p => `<button class="item" data-rl="${esc(p)}"><span class="ic">📨</span><span>${esc(p)} 담당에게</span></button>`).join('')}
+    <button class="item" data-rl=""><span class="ic">📨</span><span>집계자에게 (전체)</span></button>`);
+  $('sheet').onclick = async e => {
+    const b = e.target.closest('[data-rl]'); if (!b) return;
+    $('sheet').onclick = null; closeSheet();
+    const p = b.dataset.rl;
+    const url = linkBase() + '#z=' + await packZ({p: data.proj || '', m: p, r: data.roster.map(x => [x.name, x.part, x.time || '', x.work || ''])});
+    shareText(`[연장근무 앱] ${p ? p + ' 담당' : '집계자'}용 명단 ${data.roster.length}명\n아래 링크를 누르면 명단이 들어갑니다. (크롬으로 열고, 홈 화면에 추가)\n${url}`);
+  };
+}
+function pasteSheet() {
+  openSheet(`<h2>📥 받은 링크 붙여넣기</h2><div class="hint">카톡에서 받은 글을 길게 눌러 복사한 뒤 여기에 붙여 넣으세요. (링크가 이 앱으로 바로 안 열릴 때)</div>
+    <textarea id="pTxt" style="width:100%;height:140px;border:1px solid var(--line);border-radius:10px;padding:8px;font-size:14px"></textarea>
+    <div class="btnrow"><button class="btn2" id="pCancel">취소</button><button class="btn1" id="pOk">합치기</button></div>`);
+  $('pCancel').onclick = closeSheet;
+  $('pOk').onclick = async () => { const t = $('pTxt').value; closeSheet(); if (!(await handleLink(t))) toast('링크를 찾지 못했습니다'); };
+  navigator.clipboard?.readText?.().then(t => { if (/#[rzm]=/.test(t) && !$('pTxt').value) $('pTxt').value = t; }).catch(() => {});
 }
 
 /* ───── 엑셀(xlsx) 읽기 — 브라우저 내장 압축풀기 ───── */
@@ -871,6 +987,7 @@ function beforeShare() {
   return true;
 }
 $('bShare').onclick = async () => {
+  if (myPart()) { sendPart(); return; }
   if (!beforeShare()) return;
   const cv = boardImage();
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
@@ -927,6 +1044,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !dirty) location.reload(); });
 }
 
+partFilter = myPart();
 showDate(cur);
 hashRoster();
 </script>
