@@ -1,5 +1,5 @@
 // 오프라인 캐시. 앱 파일을 고치면 VERSION을 올릴 것 (index.html 의 APP_VERSION 과 같이).
-const VERSION = 'v1.6.1';
+const VERSION = 'v1.6.2';
 const APP = 'overtime-app-' + VERSION;
 const CORE = [
   './', './index.html', './manifest.webmanifest',
