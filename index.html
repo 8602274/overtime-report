@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.2';
+const APP_VERSION = 'v1.7.3';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -714,10 +714,7 @@ async function sendPart() {
   if (!o.x.length) delete o.x; if (!o.c.length) delete o.c;
   const url = linkBase() + '#m=' + await packZ(o);
   const on = rows.filter(r => r.on);
-  const text = [`[연장근무 ${part}] ${cur.getMonth() + 1}/${cur.getDate()}(${WD[cur.getDay()]}) O ${on.length}명 / ${rows.length}명`,
-    '▼ 집계자는 이 링크를 누르세요', url, '']
-    .concat(rows.filter(r => !r.on).length ? [`X : ${rows.filter(r => !r.on).map(r => r.name).join(', ')}`] : [])
-    .concat(on.map(r => `· ${r.name} ${r.time || ''} ${r.work || ''}`.trim())).join('\n');
+  const text = `[연장 ${part}] ${cur.getMonth() + 1}/${cur.getDate()} O ${on.length}명\n${url}`;   // 핵심만 : 한 줄 + 링크
   shareText(text, `📨 ${part} → 집계자에게 보내기`);
 }
 function receivePart(o) {
