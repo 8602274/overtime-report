@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.0';
+const APP_VERSION = 'v1.7.1';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -684,10 +684,22 @@ window.addEventListener('hashchange', hashRoster);
 
 /* ───── 파트별 입력 → 카톡 링크 → 집계자 폰에서 하나로 합치기 ───── */
 const myPart = () => data.myPart || '';
-async function shareText(text, done) {
-  if (navigator.share) { try { await navigator.share({text}); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  try { await navigator.clipboard.writeText(text); toast(done || '복사했습니다 — 카톡에 붙여 넣으세요'); }
-  catch { openSheet(`<h2>복사해서 카톡에 붙여 넣으세요</h2><textarea style="width:100%;height:200px">${esc(text)}</textarea><div class="btnrow"><button class="btn2" onclick="closeSheet()">닫기</button></div>`); }
+/* 보낼 글을 먼저 보여 주고, [카톡 보내기] 를 누르는 순간 바로 공유 (폰은 누른 직후에만 공유창을 허락함) */
+function shareText(text, title) {
+  openSheet(`<h2>${esc(title || '📤 카톡으로 보내기')}</h2>
+    <textarea id="sTxt" readonly style="width:100%;height:170px;border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px;line-height:1.45">${esc(text)}</textarea>
+    <div class="hint">[📤 카톡 보내기] → 카카오톡 → 받을 방 선택. 공유창이 안 뜨면 [📋 복사] 후 카톡 방에 붙여 넣으세요.</div>
+    <div class="btnrow"><button class="btn2" id="sCopy">📋 복사</button><button class="btn1" id="sSend">📤 카톡 보내기</button></div>`);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const ta = $('sTxt'); ta.removeAttribute('readonly'); ta.focus(); ta.select(); try { document.execCommand('copy'); } catch {} }
+    toast('복사했습니다 — 카톡 방에 붙여 넣으세요');
+  };
+  $('sCopy').onclick = copy;
+  $('sSend').onclick = () => {
+    if (!navigator.share) { copy(); return; }
+    navigator.share({text}).then(() => closeSheet()).catch(e => { if (e.name !== 'AbortError') copy(); });
+  };
 }
 async function sendPart() {
   const part = myPart();
@@ -701,7 +713,7 @@ async function sendPart() {
     .concat(on.map(r => `· ${r.name} ${r.time || ''} ${r.work || ''}`.trim()))
     .concat(rows.filter(r => !r.on).length ? [`X : ${rows.filter(r => !r.on).map(r => r.name).join(', ')}`] : [])
     .concat(['', '▼ 집계용 링크 (눌러서 합치기)', url]).join('\n');
-  shareText(text, `${part} 내용을 복사했습니다 — 카톡에 붙여 넣으세요`);
+  shareText(text, `📨 ${part} → 집계자에게 보내기`);
 }
 function receivePart(o) {
   const d = fromDs(o.d), rs = o.r || [];
@@ -744,7 +756,7 @@ function rosterLinkSheet() {
     $('sheet').onclick = null; closeSheet();
     const p = b.dataset.rl;
     const url = linkBase() + '#z=' + await packZ({p: data.proj || '', m: p, r: data.roster.map(x => [x.name, x.part, x.time || '', x.work || ''])});
-    shareText(`[연장근무 앱] ${p ? p + ' 담당' : '집계자'}용 명단 ${data.roster.length}명\n아래 링크를 누르면 명단이 들어갑니다. (크롬으로 열고, 홈 화면에 추가)\n${url}`);
+    setTimeout(() => shareText(`[연장근무 앱] ${p ? p + ' 담당' : '집계자'}용 명단 ${data.roster.length}명\n아래 링크를 누르면 명단이 들어갑니다. (크롬으로 열고, 홈 화면에 추가)\n${url}`, `🔗 ${p ? p + ' 담당' : '집계자'}에게 명단 보내기`), 230);
   };
 }
 function pasteSheet() {
