@@ -1,0 +1,9 @@
+# 이름이 들어 있는 파일 — GitHub 에 올리지 않음
+명단.txt
+PC에서열기.html
+폰으로열기.html
+*.xlsx
+~$*
+app.ico
+명단만들기.py
+사용법.md

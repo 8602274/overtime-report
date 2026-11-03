@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#9a3412">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="연장근무">
+<title>연장근무 보고</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#f3f0ec; --card:#fff; --ink:#1f1a17; --ink2:#6b625c; --line:#e2dcd5;
+  --main:#9a3412; --main2:#c2410c; --head:#292524; --ok:#0f7a3d; --red:#c62828; --blue:#1565c0;
+  --chip:#f6e9df; --on:#fff3e6; --onb:#ea580c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+body{padding:0 0 calc(92px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+
+.top{position:sticky;top:0;z-index:5;background:var(--main);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.top h1{margin:0;font-size:18px;display:flex;align-items:center;gap:8px}
+.top h1 .sp{flex:1}
+.top h1 button{color:#fff;font-size:21px;padding:2px 6px;border-radius:8px}
+.dnav{display:flex;align-items:center;gap:6px;margin-top:8px}
+.dnav .arw{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.16);font-size:20px;color:#fff}
+.dbox{flex:1;position:relative;height:44px;border-radius:12px;background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+.dbox input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
+.dbox .wd.sat{color:var(--blue)} .dbox .wd.sun{color:var(--red)}
+.today{height:44px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.16);color:#fff;font-size:14px}
+
+.state{margin:10px 12px 0;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.45}
+.state.saved{background:#e3f4ea;color:#0b5b2e}
+.state.prev{background:#fff4dd;color:#7a4b00}
+.state.dirty{background:#fde8e8;color:#8f1d1d}
+.state.empty{background:#eceae6;color:var(--ink2)}
+.prevbtn{display:block;width:calc(100% - 24px);margin:8px 12px 0;height:46px;border-radius:12px;background:#fff;border:2px solid var(--main2);color:var(--main);font-weight:800;font-size:15px}
+
+.card{margin:10px 12px;background:var(--card);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.card h3{margin:0 0 8px;font-size:14px;color:var(--ink2)}
+.f{display:flex;align-items:center;gap:8px;margin:6px 0}
+.f>label{width:58px;flex:none;font-size:14px;font-weight:700;color:var(--ink2)}
+.f input,.f textarea{flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
+.f textarea{height:64px;padding:8px 10px;resize:vertical}
+.f input:focus,.f textarea:focus{outline:none;border-color:var(--main2)}
+.dd{flex:none;width:42px;height:42px;border-radius:10px;background:var(--main2);color:#fff;font-size:18px}
+.p .det .dd{height:38px;width:38px}
+.witem{display:flex;align-items:center;gap:6px;border-bottom:1px solid #f0ece8}
+.witem .wt{flex:1;text-align:left;padding:12px 4px;font-size:16px}
+.witem .wt .ck{display:inline-block;width:26px;color:var(--main2);font-size:18px}
+.witem.sel .wt{font-weight:800;color:var(--main)}
+.witem .wx{width:40px;height:40px;border-radius:10px;background:#f4f1ee;color:var(--red)}
+.mkdef{margin:2px 0 0 56px;padding:6px 10px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:13px;color:var(--main)}
+.p:not(.on) .nm .sum{color:#a8a29e}
+.rbox{border-bottom:1px solid #f0ece8;padding:4px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px 66px}
+.chips button{padding:6px 10px;border-radius:999px;background:var(--chip);font-size:13px;color:var(--main)}
+.chips button.sel{background:var(--main2);color:#fff}
+
+.cnt{display:flex;align-items:center;gap:10px;margin:10px 12px 0}
+.cnt .big{font-size:22px;font-weight:800;color:var(--main)}
+.cnt .sp{flex:1}
+.cnt button{height:36px;padding:0 12px;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:14px}
+.cnt{gap:6px}
+@media (max-width:400px){.cnt button{padding:0 8px;font-size:13px}.cnt .big{font-size:20px}}
+.cnt .addp{color:#0b5b2e;border-color:#9fd3b2;font-weight:700}
+.cnt .delp{color:var(--red);border-color:#f0b4b4;font-weight:700}
+.cnt .delp.act{background:var(--red);color:#fff;border-color:var(--red)}
+.p .rmp{flex:none;width:64px;height:44px;border-radius:12px;font-size:15px;font-weight:800;background:var(--red);color:#fff}
+.delmode-hint{margin:8px 12px 0;padding:8px 12px;border-radius:12px;background:#fde8e8;color:#8f1d1d;font-size:14px}
+.chipsel{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px 66px}
+.chipsel button{padding:6px 10px;border-radius:999px;background:var(--chip);font-size:13px;color:var(--main)}
+.chipsel button.sel{background:var(--main2);color:#fff}
+.parts{display:flex;gap:6px;overflow-x:auto;margin:8px 12px 0;padding-bottom:2px}
+.parts button{flex:none;height:34px;padding:0 12px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:14px}
+.parts button.sel{background:var(--head);color:#fff;border-color:var(--head)}
+
+.list{margin:8px 12px 10px;background:var(--card);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.p{border-top:1px solid var(--line);padding:10px 10px 10px 12px}
+.p:first-child{border-top:0}
+.p.on{background:var(--on)}
+.p .h{display:flex;align-items:center;gap:10px}
+.p .no{width:22px;color:var(--ink2);font-size:13px;text-align:right;flex:none}
+.p .nm{flex:1;min-width:0;font-size:17px;font-weight:800}
+.p .nm small{font-size:13px;font-weight:500;color:var(--ink2);margin-left:6px}
+.p .nm .sum{display:block;font-size:13px;font-weight:500;color:var(--main);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ox{flex:none;width:64px;height:44px;border-radius:12px;font-size:20px;font-weight:900;background:#eceae6;color:#a8a29e}
+.p.on .ox{background:var(--onb);color:#fff}
+.p .det{display:none;margin:8px 0 0 32px}
+.p.open .det{display:block}
+.p .det .f>label{width:48px;font-size:13px}
+.p .det .f input{height:38px;font-size:15px}
+.p .tg{flex:none;font-size:13px;color:var(--ink2);padding:6px 4px}
+
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px}
+.bar button{height:52px;border-radius:14px;font-weight:800;font-size:15px}
+.bar .save{flex:1.2;background:var(--main);color:#fff}
+.bar .save.dim{background:#c4a596}
+.bar .share{flex:1;background:#fee500;color:#191600}
+.bar .xls{flex:.9;background:#1d6f42;color:#fff}
+.bar .more{width:48px;background:var(--chip);font-size:20px}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:#fff;border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;padding:14px 16px calc(16px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .2s}
+.sheet.open{transform:none}
+.sheet h2{margin:0 0 10px;font-size:18px}
+.sheet .item{display:flex;align-items:center;gap:10px;width:100%;padding:13px 6px;border-bottom:1px solid #f0ece8;font-size:16px;text-align:left}
+.sheet .item small{display:block;color:var(--ink2);font-size:13px;margin-top:2px}
+.sheet .item .ic{font-size:22px;width:30px;text-align:center}
+.sheet .danger{color:var(--red)}
+.btnrow{display:flex;gap:8px;margin-top:12px}
+.btnrow button{flex:1;height:48px;border-radius:12px;font-weight:700}
+.btn1{background:var(--main);color:#fff}.btn2{background:var(--chip)}
+.hint{font-size:13px;color:var(--ink2);line-height:1.5;margin:6px 0}
+.rrow{display:flex;gap:6px;align-items:center;margin:5px 0}
+.rrow span{width:22px;text-align:right;color:var(--ink2);font-size:13px}
+.rrow input{min-width:0;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font-size:15px}
+.rrow input.n{flex:1.1}.rrow input.t{flex:1}
+.rrow button{width:36px;height:40px;border-radius:10px;background:#f4f1ee;font-size:15px}
+
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-h button{width:40px;height:40px;border-radius:10px;background:var(--chip);font-size:18px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .w{text-align:center;font-size:12px;color:var(--ink2);padding:4px 0}
+.cal .d{height:52px;border-radius:10px;background:#f6f5f3;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px}
+.cal .d.has{background:#ffe8d5}.cal .d.cur{outline:2px solid var(--main)}
+.cal .d .n{font-size:11px;color:var(--main);font-weight:700}
+.cal .d.sun{color:var(--red)}.cal .d.sat{color:var(--blue)}
+.cal .d.blank{background:none}
+
+.empty-roster{margin:20px 12px;padding:18px;background:#fff;border-radius:16px;text-align:center;line-height:1.6;color:var(--ink2)}
+.empty-roster button{margin-top:10px;height:46px;padding:0 16px;border-radius:12px;background:var(--main);color:#fff;font-weight:700}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(20,18,16,.92);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+/* PC 넓은 화면 : 가운데 폰 폭으로 */
+@media (min-width:700px){
+  body{max-width:640px;margin:0 auto;box-shadow:0 0 0 1px var(--line)}
+  .bar,.sheet{left:50%;right:auto;width:640px;transform:translateX(-50%)}
+  .sheet{transform:translate(-50%,105%)} .sheet.open{transform:translate(-50%,0)}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>🌙 연장근무 보고 <span class="sp"></span><button id="bCal" aria-label="달력">📅</button></h1>
+  <div class="dnav">
+    <button class="arw" id="bPrev" aria-label="전날">◀</button>
+    <label class="dbox"><span id="dText"></span><input type="date" id="dPick"></label>
+    <button class="arw" id="bNext" aria-label="다음날">▶</button>
+    <button class="today" id="bToday">오늘</button>
+  </div>
+</div>
+
+<div class="state empty" id="state"></div>
+<button class="prevbtn" id="bLoadPrev"></button>
+
+<div class="card">
+  <div class="f"><label>공사명</label><input id="proj" placeholder="예) PETRONAS #3 ZLNG"></div>
+</div>
+
+<div class="cnt">
+  <span>연장·특근</span><span class="big" id="onCnt">0명</span><span class="sp"></span>
+  <button id="bAddP" class="addp">＋ 추가</button>
+  <button id="bDelP" class="delp">－ 삭제</button>
+  <button id="bOnlyOn">O만 보기</button>
+</div>
+<div class="parts" id="parts"></div>
+<div id="list"></div>
+
+<div class="bar">
+  <button class="more" id="bMore" aria-label="메뉴">☰</button>
+  <button class="share" id="bShare">📤 카톡</button>
+  <button class="xls" id="bXls">📊 엑셀</button>
+  <button class="save" id="bSave">💾 저장</button>
+</div>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const APP_VERSION = 'v1.6.0';
+const KEY = 'overtime-report-v1';
+const WD = '일월화수목금토';
+const DEF_TIMES = ['17:30~19:30', '17:30~20:30', '17:30~21:00', '17:30~21:30', '17:30~22:00'];
+const DEF_TIME = '17:30~20:30';   // 기본 잔업 시간
+const DEF_WORKS = ['납품관리', '생산공정관리', '납품 자재관리', '생산관리', '긴급 자켓 가공', '박스 가공', '긴급 박스 조립', '토글작업', '레이저 절단', '레이저 지원', '도면 작성 및 네스팅',
+  '생산관리 및 박스 보온', '보온 박스 재단', '보온 박스 작업'];
+const WORKS_VER = 4;
+const TIMES_VER = 2;   // 기본 작업내용 목록을 바꾸면 올림 → 기존 목록을 새 목록으로 교체
+
+/* ───── 데이터 ─────
+   roster : [{name, part}]  (명단 — 소스에는 넣지 않음, QR·엑셀 가져오기로 받음)
+   days   : {'YYYY-MM-DD': {proj, title, defTime, defWork, special, rows:[{name,part,on,time,work,note}], saved_at}} */
+function blankData() { return {version: 1, proj: '', roster: [], days: {}}; }
+let data;
+try { data = JSON.parse(localStorage.getItem(KEY)) || blankData(); } catch { data = blankData(); }
+data.roster = Array.isArray(data.roster) ? data.roster : [];
+data.days = data.days || {};
+if (!Array.isArray(data.works) || data.worksVer !== WORKS_VER) { data.works = [...DEF_WORKS]; data.worksVer = WORKS_VER; persist(); }   // 작업내용 드롭다운 목록
+if (!Array.isArray(data.times) || data.timesVer !== TIMES_VER) { data.times = [...DEF_TIMES]; data.timesVer = TIMES_VER; persist(); }   // 근무시간 드롭다운 목록
+/* 명단 = [{name, part, time, work}] — time·work 는 그 사람의 기본 근무시간·작업내용 */
+const rosterOf = name => data.roster.find(p => p.name === name) || {};
+/* 한 번 입력한 값을 드롭다운 목록에 기록 (작업내용은 쉼표로 여러 개면 나눠서) */
+function remember(key, v) {
+  let added = false;
+  const vals = key === 'works' ? String(v || '').split(',') : [String(v || '')];
+  vals.map(s => s.trim()).filter(Boolean).forEach(w => { if (!data[key].includes(w)) { data[key].push(w); added = true; } });
+  if (added) persist();
+}
+const rememberWork = v => remember('works', v);
+const rememberTime = v => remember('times', v);
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { alert('저장 실패: ' + e.message); } }
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const ds = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromDs = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const label = d => `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[m]));
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* 가장 가까운 이전 저장일 */
+function prevSource(d) {
+  const keys = Object.keys(data.days).filter(k => k < ds(d)).sort();
+  return keys.length ? keys[keys.length - 1] : null;
+}
+
+/* 명단 순서대로 줄을 맞춤 — 명단에 없는 사람도 그 날 기록에 있으면 뒤에 남김 */
+function mergeRows(src) {
+  const by = {}; (src || []).forEach(r => by[r.name] = r);
+  const rows = data.roster.map(p => {
+    const r = by[p.name]; delete by[p.name];
+    if (!r) return {name: p.name, part: p.part || '', on: true, time: p.time || DEF_TIME, work: p.work || '', note: ''};   // 기록에 없는 사람 = 기본 잔업(O)
+    return {name: p.name, part: p.part || r.part || '', on: !!r.on, time: r.time || '', work: r.work || '', note: r.note || ''};
+  });
+  for (const r of Object.values(by)) if (r.on) rows.push({...r});
+  return rows;
+}
+function dayFrom(src, keepOn = true) {
+  const s = src || {};
+  const rows = mergeRows(s.rows);
+  if (!keepOn) rows.forEach(r => { r.on = false; });
+  return {proj: s.proj ?? data.proj ?? '', title: s.title || '', defTime: s.defTime || '', defWork: s.defWork || '', special: s.special || '', rows};
+}
+
+/* ───── 화면 상태 ───── */
+let cur = new Date(); cur.setHours(0, 0, 0, 0);
+let day = null, saved = false, dirty = false, srcKey = null;
+let partFilter = '', onlyOn = false;
+
+function showDate(d) {
+  cur = d; srcKey = null;
+  const k = ds(d);
+  if (data.days[k]) { day = dayFrom(data.days[k]); day.proj = data.days[k].proj ?? data.proj; saved = true; }
+  else {
+    // 새 날 기본 = 전원 O · 사람별 기본 시간·작업내용 · 공사명·제목은 직전 저장일 것
+    srcKey = prevSource(d);
+    day = dayFrom(srcKey ? data.days[srcKey] : null);
+    day.special = ''; day.defTime = ''; day.defWork = '';
+    day.rows.forEach(r => { const p = rosterOf(r.name); r.on = true; r.time = p.time || DEF_TIME; r.work = p.work || ''; r.note = ''; });
+    saved = false;
+  }
+  dirty = false;
+  render();
+}
+
+function loadPrev() {
+  const k = prevSource(cur);
+  if (!k) { toast('전일 기록이 없습니다'); return; }
+  if ((saved || dirty) && !confirm(`${label(cur)} 화면을 ${label(fromDs(k))} 내용으로 바꿀까요?\n(바꾼 뒤 [💾 저장] 해야 확정됩니다)`)) return;
+  day = dayFrom(data.days[k]); day.special = '';
+  dirty = true; render();
+  toast(`${label(fromDs(k))} 내용으로 채웠습니다 — 고칠 것 고치고 [💾 저장]`);
+}
+$('bLoadPrev').onclick = loadPrev;
+
+const onRows = () => day.rows.filter(r => r.on);
+
+function render() {
+  const g = cur.getDay();
+  $('dText').innerHTML = `${cur.getFullYear()}. ${cur.getMonth() + 1}. ${cur.getDate()} <span class="wd ${g === 0 ? 'sun' : g === 6 ? 'sat' : ''}">&nbsp;(${WD[g]})</span>`;
+  $('dPick').value = ds(cur);
+  $('proj').value = day.proj || '';
+  renderParts();
+  renderList();
+  calc();
+}
+
+function recentTitles() {
+  const seen = new Set(), out = [];
+  for (const k of Object.keys(data.days).sort().reverse()) {
+    const t = (data.days[k].title || '').trim();
+    if (t && !seen.has(t)) { seen.add(t); out.push(t); if (out.length >= 4) break; }
+  }
+  return out;
+}
+function renderParts() {
+  const parts = [...new Set(day.rows.map(r => r.part).filter(Boolean))];
+  $('parts').innerHTML = [`<button data-part="" class="${partFilter ? '' : 'sel'}">전체</button>`]
+    .concat(parts.map(p => `<button data-part="${esc(p)}" class="${p === partFilter ? 'sel' : ''}">${esc(p)}</button>`)).join('');
+  $('parts').style.display = parts.length > 1 ? 'flex' : 'none';
+}
+function rowSummary(r) {
+  if (!r.on) { const p = rosterOf(r.name); const s = [p.time, p.work].filter(Boolean).join(' · '); return s ? `기본 ${s}` : ''; }
+  return [r.time, r.work, r.note && `(${r.note})`].filter(Boolean).join(' · ');
+}
+function renderList() {
+  if (!data.roster.length && !day.rows.length) {
+    $('list').innerHTML = `<div class="empty-roster">아직 명단이 없습니다.<br>PC 의 <b>폰으로열기</b> QR 을 찍거나,<br><b>연장근무 보고.xlsx</b> 를 폰으로 받아 가져오세요.
+      <br><button id="eImp">📂 엑셀에서 명단 가져오기</button> <button id="eEdit" style="background:#57534e">✏️ 직접 입력</button></div>`;
+    $('eImp').onclick = importXlsx; $('eEdit').onclick = rosterSheet;
+    return;
+  }
+  const html = day.rows.map((r, i) => {
+    if (partFilter && r.part !== partFilter) return '';
+    if (onlyOn && !r.on) return '';
+    return `<div class="p ${r.on ? 'on' : ''}" data-i="${i}">
+      <div class="h"><span class="no">${i + 1}</span>
+        <div class="nm">${esc(r.name)}<small>${esc(r.part)}</small><span class="sum">${esc(rowSummary(r))}</span></div>
+        ${delMode ? '<button class="rmp" data-rmp="1">✕ 삭제</button>' : `${r.on ? '<button class="tg" data-tg="1">수정 ▾</button>' : ''}
+        <button class="ox" data-ox="1">${r.on ? 'O' : 'X'}</button>`}</div>
+      <div class="det">
+        <div class="f"><label>시간</label><input data-fld="time" value="${esc(r.time)}" placeholder="${esc(day.defTime || DEF_TIME)}"><button class="dd" data-tpick="1">▾</button></div>
+        <div class="f"><label>작업</label><input data-fld="work" value="${esc(r.work)}" placeholder="${esc(day.defWork || '작업내용')}"><button class="dd" data-wpick="1">▾</button></div>
+        <div class="f"><label>비고</label><input data-fld="note" value="${esc(r.note)}"></div>
+        <button class="mkdef" data-mkdef="1">⭐ 이 시간·작업을 ${esc(r.name)} 기본으로</button>
+      </div></div>`;
+  }).join('');
+  $('list').innerHTML = (delMode ? '<div class="delmode-hint">빼낼 사람의 [✕ 삭제] 를 누르세요 · 다 했으면 위 [완료]</div>' : '') + `<div class="list">${html ||'<div class="p" style="color:var(--ink2)">해당하는 사람이 없습니다</div>'}</div>`;
+}
+
+function calc() {
+  const n = onRows().length;
+  $('onCnt').textContent = `${n}명`;
+  $('bOnlyOn').textContent = onlyOn ? '전체 보기' : 'O만 보기';
+  const st = $('state');
+  if (dirty) { st.className = 'state dirty'; st.textContent = '✏️ 바뀐 내용이 있습니다 — [💾 저장] 을 누르세요'; }
+  else if (saved) { const at = (data.days[ds(cur)] || {}).saved_at; st.className = 'state saved'; st.textContent = `✔ 저장된 날입니다${at ? ' · ' + at : ''}`; }
+  else { st.className = 'state prev'; st.textContent = `📋 기본 : 전원 O · 사람별 기본 시간·작업 — 안 하는 사람만 X 로 바꾸고 [💾 저장]`; }
+  $('bSave').classList.toggle('dim', saved && !dirty);
+  const pk = prevSource(cur), pb = $('bLoadPrev');
+  pb.style.display = pk ? 'block' : 'none';
+  if (pk) pb.textContent = `📋 ${pk === ds(addDays(cur, -1)) ? '어제' : '전일'} ${label(fromDs(pk))} 내용 불러오기`;
+}
+function touch() { dirty = true; calc(); }
+
+/* O/X · 펼치기 */
+$('list').addEventListener('click', e => {
+  const p = e.target.closest('.p[data-i]'); if (!p) return;
+  const r = day.rows[Number(p.dataset.i)];
+  if (e.target.closest('[data-rmp]')) { removePerson(r.name); return; }
+  if (delMode) return;
+  if (e.target.closest('[data-wpick]')) {
+    workSheet(r.work, v => { r.work = v; p.querySelector('[data-fld="work"]').value = v; p.querySelector('.sum').textContent = rowSummary(r); touch(); });
+    return;
+  }
+  if (e.target.closest('[data-mkdef]')) {
+    const ro = data.roster.find(x => x.name === r.name);
+    if (!ro) { toast('명단에 없는 사람입니다'); return; }
+    ro.time = r.time; ro.work = r.work; persist(); toast(`${r.name} 기본 : ${[r.time, r.work].filter(Boolean).join(' · ')}`);
+    return;
+  }
+  if (e.target.closest('[data-tpick]')) {
+    timeSheet(r.time, v => { r.time = v; p.querySelector('[data-fld="time"]').value = v; p.querySelector('.sum').textContent = rowSummary(r); touch(); });
+    return;
+  }
+  if (e.target.closest('[data-ox]')) {
+    r.on = !r.on;
+    if (r.on) { const ro = rosterOf(r.name); if (!r.time) r.time = day.defTime || ro.time || DEF_TIME; if (!r.work) r.work = day.defWork || ro.work || ''; }
+    if (navigator.vibrate) navigator.vibrate(10);
+    touch(); renderList(); return;
+  }
+  if (e.target.closest('[data-tg]') || (r.on && !e.target.closest('.det'))) p.classList.toggle('open');
+});
+$('list').addEventListener('input', e => {
+  const inp = e.target.closest('[data-fld]'); if (!inp) return;
+  const p = inp.closest('.p'), r = day.rows[Number(p.dataset.i)];
+  r[inp.dataset.fld] = inp.value;
+  p.querySelector('.sum').textContent = rowSummary(r);
+  touch();
+});
+$('list').addEventListener('change', e => {
+  const inp = e.target.closest('[data-fld]'); if (!inp) return;
+  if (inp.dataset.fld === 'work') rememberWork(inp.value);
+  if (inp.dataset.fld === 'time') rememberTime(inp.value);
+});
+
+/* 일괄 변경 (☰ 메뉴) — O 인 사람 전원의 시간·작업을 한 값으로 */
+function setAll(fld, v) {
+  if (!v) return;
+  day.rows.forEach(r => { if (r.on) r[fld] = v; });
+  touch(); renderList(); toast(`O ${onRows().length}명 ${fld === 'time' ? '근무시간' : '작업내용'} → ${v}`);
+}
+/* 제목 = O 인 사람들의 작업내용을 모아 이음 (엑셀·그림·글에 씀) */
+function autoTitle() {
+  const s = new Set();
+  onRows().forEach(r => String(r.work || '').split(',').map(x => x.trim()).filter(Boolean).forEach(w => s.add(w)));
+  return [...s].join(', ');
+}
+
+/* 드롭다운 — 눌러서 고르기 · ✕ 로 목록에서 지우기 · 새로 입력해 추가
+   multi = true : 여러 개 골라 쉼표로 이어 붙임(작업내용) / false : 하나 누르면 바로 적용(근무시간) */
+function pickSheet({key, title, ph, multi}, curVal, apply) {
+  const list = data[key];
+  const split = v => multi ? String(v || '').split(',').map(s => s.trim()).filter(Boolean) : [String(v || '').trim()].filter(Boolean);
+  const picked = new Set(split(curVal));
+  const draw = () => {
+    openSheet(`<h2>${title}</h2><div class="hint">${multi ? '여러 개 고르면 쉼표로 이어 붙습니다 · ' : '누르면 바로 들어갑니다 · '}✕ = 목록에서 지우기</div>
+      <div id="wl">${list.map((w, i) => `<div class="witem ${picked.has(w) ? 'sel' : ''}"><button class="wt" data-wi="${i}"><span class="ck">${multi ? (picked.has(w) ? '☑' : '☐') : (picked.has(w) ? '●' : '○')}</span>${esc(w)}</button><button class="wx" data-wdel="${i}">✕</button></div>`).join('') || '<div class="hint">목록이 비었습니다</div>'}</div>
+      <div class="f" style="margin-top:10px"><input id="wNew" placeholder="${ph}"><button class="btn2" style="height:42px;padding:0 14px;border-radius:10px" id="wAdd">추가</button></div>
+      ${multi ? '<div class="btnrow"><button class="btn2" id="wCancel">취소</button><button class="btn1" id="wOk">적용</button></div>' : '<div class="btnrow"><button class="btn2" id="wCancel">닫기</button></div>'}`);
+    const done = () => { closeSheet(); apply(list.filter(w => picked.has(w)).concat([...picked].filter(w => !list.includes(w))).join(', ')); };
+    $('wl').onclick = e => {
+      const t = e.target.closest('[data-wi]'), x = e.target.closest('[data-wdel]');
+      if (t) {
+        const w = list[t.dataset.wi];
+        if (!multi) { picked.clear(); picked.add(w); done(); return; }
+        picked.has(w) ? picked.delete(w) : picked.add(w); draw();
+      }
+      if (x) {
+        const w = list[x.dataset.wdel];
+        if (!confirm(`'${w}' 을(를) 목록에서 지울까요?`)) return;
+        list.splice(Number(x.dataset.wdel), 1); picked.delete(w); persist(); draw();
+      }
+    };
+    const add = () => {
+      const v = $('wNew').value.trim(); if (!v) return;
+      remember(key, v);
+      if (!multi) { picked.clear(); picked.add(v); done(); return; }
+      split(v).forEach(w => picked.add(w)); draw();
+    };
+    $('wAdd').onclick = add;
+    $('wNew').onkeydown = e => { if (e.key === 'Enter') add(); };
+    $('wCancel').onclick = closeSheet;
+    if (multi) $('wOk').onclick = done;
+  };
+  draw();
+}
+const workSheet = (v, apply) => pickSheet({key: 'works', title: '📋 작업내용 고르기', ph: '새 작업내용 입력', multi: true}, v, apply);
+const timeSheet = (v, apply) => pickSheet({key: 'times', title: '🕔 근무시간 고르기', ph: '예) 17:30~23:00', multi: false}, v, apply);
+$('proj').addEventListener('input', e => { day.proj = e.target.value; touch(); });
+$('parts').addEventListener('click', e => {
+  const b = e.target.closest('[data-part]'); if (!b) return;
+  partFilter = b.dataset.part; renderParts(); renderList();
+});
+$('bOnlyOn').onclick = () => { onlyOn = !onlyOn; calc(); renderList(); };
+
+/* 저장 */
+function save() {
+  if (!onRows().length && !confirm('O 표시한 사람이 없습니다. 그래도 저장할까요?')) return false;
+  const now = new Date();
+  data.proj = day.proj || data.proj;
+  rememberWork(day.defWork); rememberTime(day.defTime);
+  onRows().forEach(r => { rememberWork(r.work); rememberTime(r.time); });
+  data.days[ds(cur)] = {...clone(day), saved_at: `${ds(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}`};
+  persist(); saved = true; dirty = false; srcKey = null;
+  calc(); toast(`${label(cur)} 저장했습니다`);
+  return true;
+}
+$('bSave').onclick = save;
+
+function go(d) {
+  if (dirty && !confirm(`${label(cur)} 바뀐 내용을 저장하지 않았습니다.\n저장하지 않고 이동할까요?`)) return;
+  showDate(d);
+}
+$('bPrev').onclick = () => go(addDays(cur, -1));
+$('bNext').onclick = () => go(addDays(cur, 1));
+$('bToday').onclick = () => { const t = new Date(); t.setHours(0, 0, 0, 0); go(t); };
+$('dPick').onchange = e => { if (e.target.value) go(fromDs(e.target.value)); };
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ───── 시트 ───── */
+function openSheet(html) { $('sheet').innerHTML = html; $('sheetBg').style.display = 'block'; requestAnimationFrame(() => $('sheet').classList.add('open')); }
+function closeSheet() { $('sheet').classList.remove('open'); setTimeout(() => $('sheetBg').style.display = 'none', 200); }
+$('sheetBg').onclick = closeSheet;
+
+$('bMore').onclick = () => {
+  openSheet(`<h2>메뉴</h2>
+  <button class="item" id="mCal"><span class="ic">📅</span><span>달력에서 날짜 고르기<small>저장한 날은 주황 · 숫자 = O 인원</small></span></button>
+  <button class="item" id="mPrev"><span class="ic">📋</span><span>전일 내용 다시 불러오기</span></button>
+  <button class="item" id="mAllO"><span class="ic">⭕</span><span>이 날 전원 O 로<small>시간·작업은 사람별 기본값</small></span></button>
+  <button class="item" id="mSetT"><span class="ic">🕔</span><span>O 전원 근무시간 일괄 변경</span></button>
+  <button class="item" id="mSetW"><span class="ic">📋</span><span>O 전원 작업내용 일괄 변경</span></button>
+  <button class="item" id="mAllX"><span class="ic">✖️</span><span>이 날 전원 X 로</span></button>
+  <button class="item" id="mRoster"><span class="ic">👥</span><span>명단 고치기<small>이름 · 소속 · 순서 · 추가 · 빼기 (${data.roster.length}명)</small></span></button>
+  <button class="item" id="mImpX"><span class="ic">📂</span><span>엑셀에서 명단 가져오기<small>연장근무 보고.xlsx 양식</small></span></button>
+  <button class="item" id="mExp"><span class="ic">💾</span><span>백업 내보내기</span></button>
+  <button class="item" id="mImp"><span class="ic">📥</span><span>백업 가져오기</span></button>
+  <button class="item danger" id="mDel"><span class="ic">🗑</span><span>이 날짜 기록 지우기</span></button>
+  <div class="hint" style="margin-top:10px">연장근무 보고 ${APP_VERSION} · 저장된 날 ${Object.keys(data.days).length}일 · 자료는 이 폰 안에만 저장됩니다
+  <button class="btn2" style="padding:4px 10px;border-radius:8px;margin-left:6px" id="mUpd">업데이트 확인</button></div>`);
+  $('mCal').onclick = () => calSheet(cur.getFullYear(), cur.getMonth());
+  $('mPrev').onclick = () => { closeSheet(); loadPrev(); };
+  $('mAllO').onclick = () => { closeSheet(); day.rows.forEach(r => { if (!r.on) { const ro = rosterOf(r.name); r.on = true; r.time = r.time || ro.time || DEF_TIME; r.work = r.work || ro.work || ''; } }); touch(); renderList(); };
+  $('mSetT').onclick = () => timeSheet('', v => setAll('time', v));
+  $('mSetW').onclick = () => workSheet('', v => setAll('work', v));
+  $('mAllX').onclick =() => { closeSheet(); day.rows.forEach(r => r.on = false); touch(); renderList(); };
+  $('mRoster').onclick = rosterSheet;
+  $('mImpX').onclick = () => { closeSheet(); importXlsx(); };
+  $('mExp').onclick = () => { closeSheet(); exportData(); };
+  $('mImp').onclick = () => { closeSheet(); importData(); };
+  $('mDel').onclick = () => {
+    closeSheet();
+    if (!data.days[ds(cur)]) { toast('이 날은 저장된 기록이 없습니다'); return; }
+    if (!confirm(`${label(cur)} 기록을 지울까요?`)) return;
+    delete data.days[ds(cur)]; persist(); showDate(cur); toast('지웠습니다');
+  };
+  $('mUpd').onclick = () => checkUpdate(true);
+};
+$('bCal').onclick = () => calSheet(cur.getFullYear(), cur.getMonth());
+
+function calSheet(y, m) {
+  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0).getDate();
+  let cells = [...WD].map((w, i) => `<div class="w" style="color:${i === 0 ? 'var(--red)' : i === 6 ? 'var(--blue)' : ''}">${w}</div>`).join('');
+  for (let i = 0; i < first.getDay(); i++) cells += '<div class="d blank"></div>';
+  for (let d = 1; d <= last; d++) {
+    const dt = new Date(y, m, d), k = ds(dt), x = data.days[k], g = dt.getDay();
+    const n = x ? (x.rows || []).filter(r => r.on).length : null;
+    cells += `<button class="d ${x ? 'has' : ''} ${k === ds(cur) ? 'cur' : ''} ${g === 0 ? 'sun' : g === 6 ? 'sat' : ''}" data-day="${k}">${d}${x ? `<span class="n">${n}명</span>` : ''}</button>`;
+  }
+  openSheet(`<div class="cal-h"><button id="cP">◀</button><h2 style="margin:0">${y}년 ${m + 1}월</h2><button id="cN">▶</button></div>
+    <div class="cal">${cells}</div><div class="hint">주황 = 저장한 날 (숫자 = O 인원)</div>`);
+  $('cP').onclick = () => calSheet(m ? y : y - 1, m ? m - 1 : 11);
+  $('cN').onclick = () => calSheet(m === 11 ? y + 1 : y, m === 11 ? 0 : m + 1);
+  document.querySelectorAll('.cal .d[data-day]').forEach(b => b.onclick = () => { closeSheet(); go(fromDs(b.dataset.day)); });
+}
+
+/* 화면에서 바로 사람 추가 · 삭제 */
+let delMode = false;
+function setDelMode(v) {
+  delMode = v;
+  const b = $('bDelP'); b.classList.toggle('act', v); b.textContent = v ? '완료' : '－ 삭제';
+  renderList();
+}
+$('bDelP').onclick = () => setDelMode(!delMode);
+function removePerson(name) {
+  if (!confirm(`${name} 을(를) 명단에서 뺄까요?\n(지난 날 저장된 기록은 그대로 남습니다)`)) return;
+  data.roster = data.roster.filter(p => p.name !== name);
+  day.rows = day.rows.filter(r => r.name !== name);
+  persist(); renderParts(); renderList(); touch();
+  toast(`${name} 삭제 — 명단 ${data.roster.length}명 · 이 날 화면도 [💾 저장]`);
+}
+$('bAddP').onclick = () => {
+  if (delMode) setDelMode(false);
+  const parts = [...new Set(data.roster.map(p => p.part).filter(Boolean))];
+  openSheet(`<h2>＋ 사람 추가</h2><div class="hint">명단 맨 아래에 들어가고, 오늘은 O(잔업)로 시작합니다.</div>
+    <div class="f"><label>이름</label><input id="aName" placeholder="이름"></div>
+    <div class="f"><label>소속</label><input id="aPart" placeholder="소속"></div>
+    <div class="chipsel" id="aParts">${parts.map(p => `<button data-ap="${esc(p)}">${esc(p)}</button>`).join('')}</div>
+    <div class="f"><label>근무시간</label><input id="aTime" value="${DEF_TIME}"><button class="dd" id="aTP">▾</button></div>
+    <div class="f"><label>작업내용</label><input id="aWork" placeholder="기본 작업내용"><button class="dd" id="aWP">▾</button></div>
+    <div class="btnrow"><button class="btn2" id="aCancel">취소</button><button class="btn1" id="aOk">추가</button></div>`);
+  const keep = () => ({name: $('aName').value, part: $('aPart').value, time: $('aTime').value, work: $('aWork').value});
+  const restore = v => { $('aName').value = v.name; $('aPart').value = v.part; $('aTime').value = v.time; $('aWork').value = v.work; };
+  $('aParts').onclick = e => { const b = e.target.closest('[data-ap]'); if (!b) return; $('aPart').value = b.dataset.ap; $('aParts').querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b)); };
+  const reopen = v => { $('bAddP').onclick(); restore(v); };
+  $('aTP').onclick = () => { const v = keep(); timeSheet(v.time, t => { v.time = t; setTimeout(() => reopen(v), 230); }); };
+  $('aWP').onclick = () => { const v = keep(); workSheet(v.work, w => { v.work = w; setTimeout(() => reopen(v), 230); }); };
+  $('aCancel').onclick = closeSheet;
+  $('aOk').onclick = () => {
+    const v = keep(), name = v.name.trim();
+    if (!name) { toast('이름을 넣으세요'); $('aName').focus(); return; }
+    if (data.roster.some(p => p.name === name)) { toast(`${name} 은(는) 이미 명단에 있습니다`); return; }
+    const p = {name, part: v.part.trim(), time: v.time.trim(), work: v.work.trim()};
+    data.roster.push(p); rememberTime(p.time); rememberWork(p.work);
+    day.rows = day.rows.filter(r => r.name !== name);
+    day.rows.push({name, part: p.part, on: true, time: p.time || DEF_TIME, work: p.work, note: ''});
+    persist(); closeSheet(); renderParts(); renderList(); touch();
+    toast(`${name} 추가 — 명단 ${data.roster.length}명 · [💾 저장]`);
+  };
+  setTimeout(() => $('aName').focus(), 260);
+};
+
+/* 명단 고치기 */
+function rosterSheet() {
+  let list = clone(data.roster);
+  const draw = () => {
+    openSheet(`<h2>👥 명단 (${list.length}명)</h2><div class="hint">이름 · 소속 · 기본 근무시간 · 기본 작업내용. ↑ 로 순서를 바꿉니다. 지난 날 기록은 그대로 남습니다.</div>
+      <div id="rl">${list.map((p, i) => `<div class="rbox"><div class="rrow"><span>${i + 1}</span><input class="n" data-ri="${i}" data-rf="name" value="${esc(p.name)}" placeholder="이름">
+        <input class="t" data-ri="${i}" data-rf="part" value="${esc(p.part)}" placeholder="소속"><button data-up="${i}">↑</button><button data-rm="${i}">✕</button></div>
+        <div class="rrow"><span></span><input class="t" data-ri="${i}" data-rf="time" value="${esc(p.time || '')}" placeholder="${DEF_TIME}">
+        <input class="n" style="flex:1.6" data-ri="${i}" data-rf="work" value="${esc(p.work || '')}" placeholder="기본 작업내용"></div></div>`).join('')}</div>
+      <button class="btn2" style="width:100%;height:44px;border-radius:12px;margin-top:6px" id="rAdd">＋ 사람 추가</button>
+      <div class="btnrow"><button class="btn2" id="rCancel">취소</button><button class="btn1" id="rOk">저장</button></div>`);
+    $('rl').oninput = e => { const t = e.target; if (t.dataset.ri) list[t.dataset.ri][t.dataset.rf] = t.value; };
+    $('rl').onclick = e => {
+      const u = e.target.dataset.up, r = e.target.dataset.rm;
+      if (u > 0) { [list[u - 1], list[u]] = [list[u], list[u - 1]]; draw(); }
+      if (r !== undefined) { list.splice(Number(r), 1); draw(); }
+    };
+    $('rAdd').onclick = () => { list.push({name: '', part: list.length ? list[list.length - 1].part : ''}); draw(); setTimeout(() => document.querySelector(`input[data-ri="${list.length - 1}"]`).focus(), 260); };
+    $('rCancel').onclick = closeSheet;
+    $('rOk').onclick = () => {
+      data.roster = list.map(p => ({name: p.name.trim(), part: (p.part || '').trim(), time: (p.time || '').trim(), work: (p.work || '').trim()})).filter(p => p.name);
+      data.roster.forEach(p => { rememberTime(p.time); rememberWork(p.work); });
+      persist(); closeSheet();
+      const keep = clone(day); day.rows = mergeRows(keep.rows);
+      render(); touch(); toast('명단을 고쳤습니다 — 이 날 화면도 [💾 저장]');
+    };
+  };
+  draw();
+}
+function setRoster(list, proj) {
+  data.roster = list; if (proj) data.proj = proj; persist();
+  if (!saved) { dirty = false; showDate(cur); return; }   // 저장 안 한 날이면 기본(전원 O · 사람별 기본값)으로 다시
+  const keep = clone(day); day.rows = mergeRows(keep.rows); if (proj && !day.proj) day.proj = proj;
+  render();
+}
+
+/* ───── QR 로 명단 받기 (#r=...) — 명단은 주소 # 뒤에만 있어 서버로 가지 않음 ───── */
+function b64uBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+}
+async function hashRoster() {   // #r= : base64url JSON · #z= : deflate 압축 (QR 을 작게)
+  const m = /[#&]([rz])=([^&]+)/.exec(location.hash); if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let o;
+  try {
+    const b = b64uBytes(m[2]);
+    const txt = m[1] === 'z' ? await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text() : new TextDecoder().decode(b);
+    o = JSON.parse(txt);
+  } catch { alert('QR 명단을 읽지 못했습니다'); return; }
+  const list = (o.r || []).map(([name, part, time, work]) => ({name, part, time: time || '', work: work || ''}));
+  list.forEach(p => { rememberTime(p.time); rememberWork(p.work); });
+  if (!list.length) return;
+  if (data.roster.length && !confirm(`QR 명단 ${list.length}명으로 바꿀까요?\n(지금 명단 ${data.roster.length}명)`)) return;
+  setRoster(list, o.p); toast(`명단 ${list.length}명을 받았습니다`);
+}
+
+/* ───── 엑셀(xlsx) 읽기 — 브라우저 내장 압축풀기 ───── */
+async function unzip(buf) {
+  const v = new DataView(buf), u8 = new Uint8Array(buf), out = {};
+  let e = buf.byteLength - 22; while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('zip 아님');
+  let p = v.getUint32(e + 16, true); const n = v.getUint16(e + 10, true);
+  for (let i = 0; i < n; i++) {
+    const meth = v.getUint16(p + 10, true), csz = v.getUint32(p + 20, true), nl = v.getUint16(p + 28, true),
+      xl = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true), lo = v.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl));
+    p += 46 + nl + xl + cl;
+    const ds0 = lo + 30 + v.getUint16(lo + 26, true) + v.getUint16(lo + 28, true);
+    const raw = u8.subarray(ds0, ds0 + csz);
+    out[name] = async () => {
+      if (meth === 0) return new TextDecoder().decode(raw);
+      const st = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return await new Response(st).text();
+    };
+  }
+  return out;
+}
+async function readXlsx(file) {
+  const z = await unzip(await file.arrayBuffer());
+  const P = s => new DOMParser().parseFromString(s, 'application/xml');
+  const ss = z['xl/sharedStrings.xml'] ? [...P(await z['xl/sharedStrings.xml']()).getElementsByTagName('si')].map(si => [...si.getElementsByTagName('t')].map(t => t.textContent).join('')) : [];
+  const sheetName = Object.keys(z).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort()[0];
+  const doc = P(await z[sheetName]());
+  const grid = {};
+  for (const c of doc.getElementsByTagName('c')) {
+    const ref = c.getAttribute('r'), t = c.getAttribute('t'); let val = '';
+    if (t === 's') val = ss[Number(c.getElementsByTagName('v')[0]?.textContent)] ?? '';
+    else if (t === 'inlineStr') val = [...c.getElementsByTagName('t')].map(x => x.textContent).join('');
+    else val = c.getElementsByTagName('v')[0]?.textContent ?? '';
+    const m = /^([A-Z]+)(\d+)$/.exec(ref); (grid[m[2]] ||= {})[m[1]] = String(val).trim();
+  }
+  const rows = Object.keys(grid).map(Number).sort((a, b) => a - b);
+  let proj = '', title = '', hr = 0, nameCol = 'B', partCol = 'C';
+  for (const r of rows) {
+    const g = grid[r], cells = Object.entries(g);
+    for (const [col, v] of cells) {
+      const nextVal = () => cells.filter(([c2, v2]) => c2 > col && v2).sort()[0]?.[1] || '';
+      if (v.replace(/\s/g, '') === '공사명') proj = nextVal();
+      if (v.replace(/\s/g, '') === '제목') title = nextVal();
+      if (v === '이름') { hr = r; nameCol = col; }
+      if (v === '소속') partCol = col;
+    }
+    if (hr) break;
+  }
+  if (!hr) throw new Error('"이름" 칸이 있는 줄을 찾지 못했습니다');
+  const list = [];
+  for (const r of rows) {
+    if (r <= hr) continue;
+    const g = grid[r]; if (Object.values(g).some(v => v.replace(/\s/g, '') === '특이사항')) break;
+    if (g[nameCol]) list.push({name: g[nameCol], part: g[partCol] || ''});
+  }
+  return {proj, title, list};
+}
+function importXlsx() {
+  const inp = document.createElement('input'); inp.type = 'file';
+  inp.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    try {
+      const {proj, title, list} = await readXlsx(f);
+      if (!list.length) { alert('명단이 비어 있습니다'); return; }
+      if (!confirm(`엑셀 명단 ${list.length}명을 가져올까요?\n${list.slice(0, 5).map(p => p.name).join(', ')}${list.length > 5 ? ' …' : ''}${data.roster.length ? `\n(지금 명단 ${data.roster.length}명은 바뀝니다)` : ''}`)) return;
+      setRoster(list, proj);
+      toast(`명단 ${list.length}명을 가져왔습니다`);
+    } catch (e) { alert('엑셀을 읽지 못했습니다: ' + e.message); }
+  };
+  inp.click();
+}
+
+/* ───── 엑셀(xlsx) 만들기 — 보고 양식 그대로 ───── */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zip(files) {   // 무압축 zip
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  for (const [name, text] of Object.entries(files)) {
+    const nb = enc.encode(name), db = enc.encode(text), c = crc32(db);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);
+    h.setUint32(14, c, true); h.setUint32(18, db.length, true); h.setUint32(22, db.length, true); h.setUint16(26, nb.length, true);
+    parts.push(h, nb, db);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint32(16, c, true); ch.setUint32(20, db.length, true); ch.setUint32(24, db.length, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, off, true);
+    cen.push(ch, nb);
+    off += 30 + nb.length + db.length;
+  }
+  const cl = cen.reduce((a, x) => a + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+  const n = Object.keys(files).length;
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, n, true); e.setUint16(10, n, true); e.setUint32(12, cl, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, e], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const xe = s => String(s ?? '').replace(/[&<>"]/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[m])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+function buildXlsx() {
+  const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const font = (sz, b) => `<font>${b ? '<b/>' : ''}<sz val="${sz}"/><name val="맑은 고딕"/><family val="3"/><charset val="129"/></font>`;
+  const xf = (f, h, wrap, v = 'center') => `<xf numFmtId="0" fontId="${f}" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${h}" vertical="${v}"${wrap ? ' wrapText="1"' : ''}/></xf>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet ${NS}>
+<fonts count="5">${font(11)}${font(13)}${font(20)}${font(15)}${font(13, 1)}</fonts>
+<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color indexed="64"/></left><right style="thin"><color indexed="64"/></right><top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>${xf(1, 'center', 1)}${xf(1, 'center')}${xf(1, 'left', 1)}${xf(2, 'center')}${xf(3, 'center', 1)}${xf(4, 'center')}${xf(1, 'left', 1, 'top')}</cellXfs>
+<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  // 스타일: 1 머리 · 2 가운데 · 3 왼쪽 · 4 공사명 · 5 제목 · 6 O(굵게) · 7 특이사항
+  const cell = (ref, s, v) => v === '' || v === null || v === undefined ? `<c r="${ref}" s="${s}"/>`
+    : typeof v === 'number' ? `<c r="${ref}" s="${s}"><v>${v}</v></c>` : `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+  const rowsX = [];
+  const row = (r, ht, cells) => rowsX.push(`<row r="${r}" ht="${ht}" customHeight="1">${cells.join('')}</row>`);
+  row(1, 27, [cell('A1', 2, '공사명'), cell('B1', 2, ''), cell('C1', 4, day.proj || ''), ...'DEFG'.split('').map(c => cell(c + 1, 4, ''))]);
+  row(2, 26.25, [cell('A2', 2, '제목'), cell('B2', 2, ''), cell('C2', 5, autoTitle()), ...'DEFG'.split('').map(c => cell(c + 2, 5, ''))]);
+  row(3, 40.8, [cell('A3', 1, '순번'), cell('B3', 1, '이름'), cell('C3', 1, '소속'), cell('D3', 1, '연장근무 및      특근여부[O.X]'), cell('E3', 1, '근무시간'), cell('F3', 1, '작업내용'), cell('G3', 1, '비고')]);
+  let r = 4;
+  day.rows.forEach((p, i) => {
+    row(r, 18.9, [cell('A' + r, 2, i + 1), cell('B' + r, 2, p.name), cell('C' + r, 2, p.part), cell('D' + r, p.on ? 6 : 2, p.on ? 'O' : 'X'),
+      cell('E' + r, 2, p.on ? (p.time || day.defTime) : ''), cell('F' + r, 3, p.on ? (p.work || day.defWork) : ''), cell('G' + r, 2, p.note)]);
+    r++;
+  });
+  const sr = r;
+  row(r, 20.1, [cell('A' + r, 2, '특이사항'), cell('B' + r, 2, ''), cell('C' + r, 7, day.special), ...'DEFG'.split('').map(c => cell(c + r, 7, ''))]); r++;
+  row(r, 20.1, 'ABCDEFG'.split('').map((c, i) => cell(c + r, i < 2 ? 2 : 7, ''))); r++;
+  const last = r - 1;
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ${NS} xmlns:r="${R}"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:G${last}"/>
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="17.4"/>
+<cols><col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/><col min="3" max="4" width="14.7" customWidth="1"/><col min="5" max="5" width="16" customWidth="1"/><col min="6" max="6" width="48.9" customWidth="1"/><col min="7" max="7" width="18.1" customWidth="1"/></cols>
+<sheetData>${rowsX.join('')}</sheetData>
+<mergeCells count="6"><mergeCell ref="A1:B1"/><mergeCell ref="C1:G1"/><mergeCell ref="A2:B2"/><mergeCell ref="C2:G2"/><mergeCell ref="A${sr}:B${last}"/><mergeCell ref="C${sr}:G${last}"/></mergeCells>
+<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
+  return zip({
+    '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook ${NS} xmlns:r="${R}"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">Sheet1!$A$1:$G$${last}</definedName></definedNames></workbook>`,
+    'xl/_rels/workbook.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`,
+    'xl/styles.xml': styles,
+    'xl/worksheets/sheet1.xml': sheet,
+  });
+}
+
+/* ───── 카톡 공유 : 보고서 그림 + 글 ───── */
+function wrapText(x, s, w) {   // 글자 단위 줄바꿈
+  const out = []; let line = '';
+  for (const ch of String(s)) { if (x.measureText(line + ch).width > w && line) { out.push(line); line = ch; } else line += ch; }
+  if (line) out.push(line); return out;
+}
+function boardImage() {
+  const F = '"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+  const cols = [70, 130, 150, 120, 200, 470, 200], W = cols.reduce((a, b) => a + b, 0) + 80;
+  const rows = day.rows, rowH = 50, top = 300;
+  const cv0 = document.createElement('canvas').getContext('2d'); cv0.font = `500 26px ${F}`;
+  const spLines = day.special ? wrapText(cv0, day.special.replace(/\n/g, ' '), cols.slice(2).reduce((a, b) => a + b, 0) - 30) : [];
+  const spH = Math.max(90, 24 + spLines.length * 36);
+  const H = top + 64 + rows.length * rowH + spH + 90;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.textBaseline = 'middle'; x.fillStyle = '#111'; x.textAlign = 'center';
+  x.font = `800 52px ${F}`; x.fillText('연장근무 보고', W / 2, 60);
+  x.textAlign = 'right'; x.font = `600 28px ${F}`;
+  x.fillText(`${cur.getFullYear()}년 ${cur.getMonth() + 1}월 ${cur.getDate()}일 (${WD[cur.getDay()]})   O ${onRows().length}명`, W - 40, 122);
+  const L = 40, R = W - 40, c2 = L + cols[0] + cols[1];
+  x.strokeStyle = '#222'; x.lineWidth = 2;
+  // 공사명 · 제목
+  [['공사명', day.proj || '', 158], ['제목', autoTitle(), 222]].forEach(([k, v, y]) => {
+    x.strokeRect(L, y, R - L, 64); x.beginPath(); x.moveTo(c2, y); x.lineTo(c2, y + 64); x.stroke();
+    x.textAlign = 'center'; x.fillStyle = '#111'; x.font = `700 28px ${F}`; x.fillText(k, (L + c2) / 2, y + 33);
+    let fs = 32; x.font = `700 ${fs}px ${F}`; while (x.measureText(v).width > R - c2 - 30 && fs > 24) { fs -= 2; x.font = `700 ${fs}px ${F}`; }
+    if (x.measureText(v).width <= R - c2 - 30) x.fillText(v, (c2 + R) / 2, y + 33);
+    else {   // 길면 두 줄
+      fs = 22; x.font = `600 ${fs}px ${F}`;
+      let ls = wrapText(x, v, R - c2 - 30);
+      while (ls.length > 2 && fs > 14) { fs -= 1; x.font = `600 ${fs}px ${F}`; ls = wrapText(x, v, R - c2 - 30); }
+      ls.slice(0, 2).forEach((ln, i) => x.fillText(ln, (c2 + R) / 2, y + 33 + (i ? 1 : -1) * (fs * .6)));
+    }
+  });
+  // 머리줄
+  const hd = ['순번', '이름', '소속', 'O / X', '근무시간', '작업내용', '비고'];
+  let y = top; x.fillStyle = '#292524'; x.fillRect(L, y, R - L, 64);
+  let cx = L; x.fillStyle = '#fff'; x.font = `700 26px ${F}`; x.textAlign = 'center';
+  hd.forEach((h, i) => { x.fillText(h, cx + cols[i] / 2, y + 33); cx += cols[i]; });
+  y += 64;
+  rows.forEach((p, i) => {
+    if (p.on) { x.fillStyle = '#fff1e2'; x.fillRect(L, y, R - L, rowH); }
+    x.strokeRect(L, y, R - L, rowH);
+    const vals = [String(i + 1), p.name, p.part, p.on ? 'O' : 'X', p.on ? (p.time || day.defTime) : '', p.on ? (p.work || day.defWork) : '', p.note || ''];
+    cx = L;
+    vals.forEach((v, j) => {
+      if (j) { x.beginPath(); x.moveTo(cx, y); x.lineTo(cx, y + rowH); x.stroke(); }
+      x.fillStyle = j === 3 ? (p.on ? '#c2410c' : '#b5aea8') : p.on || j < 3 ? '#111' : '#777';
+      let fs = j === 3 ? 30 : 25; x.font = `${j === 3 || (j === 1 && p.on) ? 800 : 500} ${fs}px ${F}`;
+      while (x.measureText(v).width > cols[j] - 14 && fs > 14) { fs -= 1; x.font = `500 ${fs}px ${F}`; }
+      x.textAlign = j === 5 ? 'left' : 'center';
+      x.fillText(v, j === 5 ? cx + 10 : cx + cols[j] / 2, y + rowH / 2 + 1);
+      cx += cols[j];
+    });
+    y += rowH;
+  });
+  // 특이사항
+  x.strokeRect(L, y, R - L, spH); x.beginPath(); x.moveTo(c2, y); x.lineTo(c2, y + spH); x.stroke();
+  x.fillStyle = '#111'; x.textAlign = 'center'; x.font = `700 26px ${F}`; x.fillText('특이사항', (L + c2) / 2, y + spH / 2);
+  x.textAlign = 'left'; x.font = `500 26px ${F}`;
+  spLines.forEach((ln, i) => x.fillText(ln, c2 + 15, y + 30 + i * 36));
+  x.textAlign = 'right'; x.font = `800 34px ${F}`; x.fillText('T&S', R, H - 40);
+  return cv;
+}
+function reportText() {
+  const on = onRows();
+  const lines = [`[연장근무 보고] ${cur.getFullYear()}.${cur.getMonth() + 1}.${cur.getDate()}(${WD[cur.getDay()]})`];
+  if (day.proj) lines.push(`공사명 : ${day.proj}`);
+  lines.push(`연장·특근 ${on.length}명`);
+  on.forEach(p => lines.push(`· ${p.name}(${p.part}) ${p.time || day.defTime || ''} ${p.work || day.defWork || ''}${p.note ? ' / ' + p.note : ''}`.replace(/\s+$/, '')));
+  if (day.special) lines.push(`특이사항 : ${day.special}`);
+  return lines.join('\n');
+}
+async function shareFile(file, text, fallbackName) {
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    try { await navigator.share(text ? {files: [file], text} : {files: [file]}); return true; } catch (e) { if (e.name === 'AbortError') return true; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = fallbackName || file.name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  return false;
+}
+function beforeShare() {
+  if (!day.rows.length) { toast('명단이 없습니다'); return false; }
+  if (dirty && confirm('바뀐 내용을 먼저 저장할까요?')) save();
+  return true;
+}
+$('bShare').onclick = async () => {
+  if (!beforeShare()) return;
+  const cv = boardImage();
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const file = new File([blob], `연장근무보고_${ds(cur)}.png`, {type: 'image/png'});
+  const ok = await shareFile(file, reportText());
+  if (!ok) { try { await navigator.clipboard.writeText(reportText()); } catch {} toast('그림을 저장하고 글은 복사했습니다'); }
+};
+$('bXls').onclick = async () => {
+  if (!beforeShare()) return;
+  const file = new File([buildXlsx()], `연장근무 보고_${ds(cur)}.xlsx`, {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const ok = await shareFile(file, '');
+  if (!ok) toast('다운로드 폴더에 엑셀을 저장했습니다');
+};
+
+/* 백업 */
+async function exportData() {
+  const name = `연장근무_백업_${ds(new Date())}.json`;
+  const file = new File([JSON.stringify(data, null, 1)], name, {type: 'application/json'});
+  const ok = await shareFile(file, '', name);
+  if (!ok) toast('다운로드 폴더에 저장했습니다');
+}
+function importData() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    let d; try { d = JSON.parse(await f.text()); } catch { alert('JSON 파일을 읽지 못했습니다.'); return; }
+    if (!d || typeof d.days !== 'object') { alert('연장근무 백업 파일이 아닙니다.'); return; }
+    const ks = Object.keys(d.days), same = ks.filter(k => data.days[k]);
+    let over = true;
+    if (same.length) over = confirm(`가져올 날 ${ks.length}일 중 ${same.length}일은 이 폰에도 있습니다.\n\n[확인] 파일 값으로 덮어쓰기\n[취소] 이 폰 값 그대로 두고 없는 날만 더하기`);
+    let n = 0;
+    for (const k of ks) if (over || !data.days[k]) { data.days[k] = d.days[k]; n++; }
+    if (Array.isArray(d.roster) && d.roster.length && (!data.roster.length || confirm(`파일의 명단(${d.roster.length}명)도 가져올까요?`))) data.roster = d.roster;
+    if (d.proj && !data.proj) data.proj = d.proj;
+    persist(); showDate(cur); toast(`${n}일 가져왔습니다`);
+  };
+  inp.click();
+}
+
+/* ───── 업데이트 · 오프라인 ───── */
+async function checkUpdate(manual) {
+  try {
+    const r = await fetch('./index.html?ts=' + Date.now(), {cache: 'no-store'});
+    const m = /const APP_VERSION = '([^']+)'/.exec(await r.text());
+    try { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); } catch {}
+    const v = m && m[1];
+    if (!v || v === APP_VERSION) { if (manual) toast(`최신 버전입니다 (${APP_VERSION})`); return; }
+    if (manual || confirm(`새 버전 ${v} 이 있습니다. 지금 바꿀까요?`)) location.reload();
+  } catch { if (manual) toast('인터넷 연결을 확인하세요'); }
+}
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(reg => reg.update()).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !dirty) location.reload(); });
+}
+
+showDate(cur);
+hashRoster();
+</script>
+</body>
+</html>
