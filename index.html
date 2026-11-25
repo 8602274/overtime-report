@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.3';
+const APP_VERSION = 'v1.7.4';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -706,11 +706,15 @@ async function sendPart() {
   const rows = day.rows.filter(r => r.part === part);
   if (!rows.length) { toast(`명단에 ${part} 사람이 없습니다`); return; }
   if (dirty || !saved) { if (!save()) return; }
-  // 링크를 짧게 : 기본값과 다른 것만 (X 인 사람 · 시간/작업/비고를 바꾼 사람) — 긴 링크는 카톡이 링크로 안 바꿔 줌
-  const isDef = r => { const p = rosterOf(r.name); return r.time === (p.time || DEF_TIME) && (r.work || '') === (p.work || '') && !r.note && data.roster.some(q => q.name === r.name); };
-  const o = {v: 2, d: ds(cur).replace(/-/g, ''), p: part,
+  // 링크를 짧게 : 파트 공통 시간·작업(t·w)은 꼭 넣고, 그와 다른 사람만 따로 — 긴 링크는 카톡이 링크로 안 바꿔 줌
+  // (예전 v2 는 '보내는 폰 명단 기본값'과 같으면 빼서, 받는 폰 기본값이 다르면 시간이 바뀌었음)
+  const onR = rows.filter(r => r.on);
+  const most = k => { const n = {}; onR.forEach(r => { const v = r[k] || ''; n[v] = (n[v] || 0) + 1; }); return Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ''; };
+  const t = most('time'), w = most('work');
+  const isDef = r => (r.time || '') === t && (r.work || '') === w && !r.note && data.roster.some(q => q.name === r.name);
+  const o = {v: 3, d: ds(cur).replace(/-/g, ''), p: part, t, w,
     x: rows.filter(r => !r.on).map(r => r.name),
-    c: rows.filter(r => r.on && !isDef(r)).map(r => [r.name, r.time || '', r.work || '', r.note || ''])};
+    c: onR.filter(r => !isDef(r)).map(r => [r.name, r.time || '', r.work || '', r.note || ''])};
   if (!o.x.length) delete o.x; if (!o.c.length) delete o.c;
   const url = linkBase() + '#m=' + await packZ(o);
   const on = rows.filter(r => r.on);
@@ -718,10 +722,11 @@ async function sendPart() {
   shareText(text, `📨 ${part} → 집계자에게 보내기`);
 }
 function receivePart(o) {
-  if (o.v === 2) {   // 짧은 형식 → 이 폰 명단의 그 파트 사람 기본값에서 다시 만듦
+  if (o.v === 2 || o.v === 3) {   // 짧은 형식 → v3 : 보낸 쪽 공통 시간·작업(t·w)으로 / v2(옛 링크) : 이 폰 명단 기본값으로
     o.d = o.d.replace(/^(\d{4})(\d\d)(\d\d)$/, '$1-$2-$3');
     const x = new Set(o.x || []), c = {}; (o.c || []).forEach(a => c[a[0]] = a);
-    o.r = data.roster.filter(p => p.part === o.p).map(p => [p.name, x.has(p.name) ? 0 : 1, p.time || DEF_TIME, p.work || '', '']);
+    o.r = data.roster.filter(p => p.part === o.p).map(p => [p.name, x.has(p.name) ? 0 : 1,
+      o.v === 3 ? (o.t || '') : (p.time || DEF_TIME), o.v === 3 ? (o.w || '') : (p.work || ''), '']);
     o.r.forEach(r => { const a = c[r[0]]; if (a) { r[2] = a[1]; r[3] = a[2]; r[4] = a[3]; delete c[r[0]]; } });
     Object.values(c).forEach(a => o.r.push([a[0], 1, a[1], a[2], a[3]]));
     (o.x || []).forEach(n => { if (!o.r.some(r => r[0] === n)) o.r.push([n, 0, '', '', '']); });
