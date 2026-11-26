@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.4';
+const APP_VERSION = 'v1.7.5';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -712,7 +712,9 @@ async function sendPart() {
   const most = k => { const n = {}; onR.forEach(r => { const v = r[k] || ''; n[v] = (n[v] || 0) + 1; }); return Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ''; };
   const t = most('time'), w = most('work');
   const isDef = r => (r.time || '') === t && (r.work || '') === w && !r.note && data.roster.some(q => q.name === r.name);
+  // n = 공통 시간·작업인 O 사람 이름 — 받는 폰 명단(소속·사람)이 달라도 보낸 그대로 만들어지게
   const o = {v: 3, d: ds(cur).replace(/-/g, ''), p: part, t, w,
+    n: onR.filter(isDef).map(r => r.name),
     x: rows.filter(r => !r.on).map(r => r.name),
     c: onR.filter(r => !isDef(r)).map(r => [r.name, r.time || '', r.work || '', r.note || ''])};
   if (!o.x.length) delete o.x; if (!o.c.length) delete o.c;
@@ -725,7 +727,8 @@ function receivePart(o) {
   if (o.v === 2 || o.v === 3) {   // 짧은 형식 → v3 : 보낸 쪽 공통 시간·작업(t·w)으로 / v2(옛 링크) : 이 폰 명단 기본값으로
     o.d = o.d.replace(/^(\d{4})(\d\d)(\d\d)$/, '$1-$2-$3');
     const x = new Set(o.x || []), c = {}; (o.c || []).forEach(a => c[a[0]] = a);
-    o.r = data.roster.filter(p => p.part === o.p).map(p => [p.name, x.has(p.name) ? 0 : 1,
+    if (Array.isArray(o.n)) o.r = o.n.map(n => [n, 1, o.t || '', o.w || '', '']);   // v1.7.5~ : 링크만으로 만듦 (이 폰 명단 안 씀)
+    else o.r = data.roster.filter(p => p.part === o.p).map(p => [p.name, x.has(p.name) ? 0 : 1,
       o.v === 3 ? (o.t || '') : (p.time || DEF_TIME), o.v === 3 ? (o.w || '') : (p.work || ''), '']);
     o.r.forEach(r => { const a = c[r[0]]; if (a) { r[2] = a[1]; r[3] = a[2]; r[4] = a[3]; delete c[r[0]]; } });
     Object.values(c).forEach(a => o.r.push([a[0], 1, a[1], a[2], a[3]]));
@@ -741,6 +744,7 @@ function receivePart(o) {
     if (!r) { r = {name, part: o.p}; day.rows.push(r); }
     Object.assign(r, {on: !!on, time: time || '', work: work || '', note: note || ''});
   });
+  if (Array.isArray(o.n)) { const got = new Set(rs.map(a => a[0])); day.rows.forEach(r => { if (r.part === o.p && !got.has(r.name)) r.on = false; }); }   // 보낸 쪽 명단에 없는 그 파트 사람 = X
   if (!day.proj && o.j) day.proj = o.j;
   const now = new Date();
   day.recv = {...(day.recv || {}), [o.p]: `${pad(now.getHours())}:${pad(now.getMinutes())}`};
