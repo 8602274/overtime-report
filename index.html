@@ -189,9 +189,9 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.5';
+const APP_VERSION = 'v1.7.6';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
-const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzm]=/.test(location.hash);
+const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzmk]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
 const KEY = 'overtime-report-v1';
 const WD = '일월화수목금토';
@@ -656,15 +656,63 @@ async function packZ(obj) {
   let bin = ''; b.forEach(c => bin += String.fromCharCode(c));
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+/* ───── 파트 보내기 짧은 링크 (#k=) — 이름 대신 2바이트 이름코드, 시간은 숫자로 ─────
+   받는 폰은 자기 명단의 이름으로 코드를 풀어 씀 (소속·기본시간이 달라도 상관없음) */
+const nameCode = s => { let h = 0x811c9dc5; for (const ch of String(s).trim()) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h ^ (h >>> 16)) & 0xffff; };
+const b64u = b => { let bin = ''; b.forEach(c => bin += String.fromCharCode(c)); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const D0 = Date.UTC(2020, 0, 1);
+function packK(o) {
+  const b = [4];
+  const u16 = v => b.push(v >> 8 & 255, v & 255);
+  const str = s => { const e = [...new TextEncoder().encode(s || '')].slice(0, 255); b.push(e.length, ...e); };
+  const tm = s => {
+    s = s || ''; const m = /^(\d\d):(\d\d)~(\d\d):(\d\d)$/.exec(s);
+    if (!s) b.push(0);
+    else if (m) { const a = +m[1] * 60 + +m[2], z = +m[3] * 60 + +m[4]; b.push(1, a >> 4, (a & 15) << 4 | z >> 8, z & 255); }
+    else { b.push(2); str(s); }
+  };
+  const wk = s => { const i = DEF_WORKS.indexOf(s || ''); if (!s) b.push(0); else if (i >= 0) b.push(1 + i); else { b.push(255); str(s); } };
+  const [y, mo, d] = [+o.d.slice(0, 4), +o.d.slice(4, 6), +o.d.slice(6, 8)];
+  u16(Math.round((Date.UTC(y, mo - 1, d) - D0) / 864e5));
+  str(o.p); tm(o.t); wk(o.w);
+  const names = a => { b.push(a.length); a.forEach(n => u16(nameCode(n))); };
+  names(o.n || []); names(o.x || []);
+  b.push((o.c || []).length); (o.c || []).forEach(([n, t, w, note]) => { u16(nameCode(n)); tm(t); wk(w); str(note); });
+  return b64u(b);
+}
+function unpackK(s) {
+  const b = b64uBytes(s); let i = 0;
+  const u8 = () => { if (i >= b.length) throw new Error('짧음'); return b[i++]; };
+  const u16 = () => u8() << 8 | u8();
+  const str = () => { const n = u8(); const e = b.slice(i, i + n); i += n; return new TextDecoder().decode(e); };
+  const hm = v => `${pad(v / 60 | 0)}:${pad(v % 60)}`;
+  const tm = () => { const k = u8(); if (k === 0) return ''; if (k === 2) return str(); const x = u8(), y = u8(), z = u8(); return hm(x << 4 | y >> 4) + '~' + hm((y & 15) << 8 | z); };
+  const wk = () => { const k = u8(); return k === 0 ? '' : k === 255 ? str() : (DEF_WORKS[k - 1] || ''); };
+  if (u8() !== 4) throw new Error('형식');
+  const dt = new Date(D0 + u16() * 864e5);
+  // 이 폰 명단(+그 날 기록)의 이름으로 코드 풀기 — 같은 코드가 둘이면 못 씀
+  const map = {}, dup = new Set();
+  [...data.roster.map(p => p.name), ...(day ? day.rows.map(r => r.name) : [])].forEach(n => { const c = nameCode(n); if (map[c] && map[c] !== n) dup.add(c); map[c] = n; });
+  let unk = 0;
+  const nm = c => { if (!map[c] || dup.has(c)) { unk++; return null; } return map[c]; };
+  const o = {v: 3, d: `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}`};
+  o.p = str(); o.t = tm(); o.w = wk();
+  const names = () => { const n = u8(), a = []; for (let k = 0; k < n; k++) { const x = nm(u16()); if (x) a.push(x); } return a; };
+  o.n = names(); o.x = names();
+  const nc = u8(); o.c = [];
+  for (let k = 0; k < nc; k++) { const x = nm(u16()), t = tm(), w = wk(), note = str(); if (x) o.c.push([x, t, w, note]); }
+  o.unk = unk;
+  return o;
+}
 const PAGE_URL = 'https://8602274.github.io/overtime-report/';
 const linkBase = () => location.protocol.startsWith('http') ? location.origin + location.pathname : PAGE_URL;
 
 async function handleLink(hash) {   // #r= / #z= : 명단 · #m= : 파트 입력 합치기
-  const m = /[#&]([rzm])=([^&\s]+)/.exec(hash); if (!m) return false;
+  const m = /[#&]([rzmk])=([^&\s]+)/.exec(hash); if (!m) return false;
   let o;
-  try { o = m[1] === 'r' ? JSON.parse(new TextDecoder().decode(b64uBytes(m[2]))) : await unpackZ(m[2]); }
+  try { o = m[1] === 'r' ? JSON.parse(new TextDecoder().decode(b64uBytes(m[2]))) : m[1] === 'k' ? unpackK(m[2]) : await unpackZ(m[2]); }
   catch { alert('링크를 읽지 못했습니다 — 끝까지 다 복사됐는지 확인하세요'); return true; }
-  if (m[1] === 'm') { receivePart(o); return true; }
+  if (m[1] === 'm' || m[1] === 'k') { receivePart(o); return true; }
   const list = (o.r || []).map(([name, part, time, work]) => ({name, part, time: time || '', work: work || ''}));
   list.forEach(p => { rememberTime(p.time); rememberWork(p.work); });
   if (!list.length) return true;
@@ -718,7 +766,7 @@ async function sendPart() {
     x: rows.filter(r => !r.on).map(r => r.name),
     c: onR.filter(r => !isDef(r)).map(r => [r.name, r.time || '', r.work || '', r.note || ''])};
   if (!o.x.length) delete o.x; if (!o.c.length) delete o.c;
-  const url = linkBase() + '#m=' + await packZ(o);
+  const url = linkBase() + '#k=' + packK(o);
   const on = rows.filter(r => r.on);
   const text = `[연장 ${part}] ${cur.getMonth() + 1}/${cur.getDate()} O ${on.length}명\n${url}`;   // 핵심만 : 한 줄 + 링크
   shareText(text, `📨 ${part} → 집계자에게 보내기`);
@@ -735,7 +783,7 @@ function receivePart(o) {
     (o.x || []).forEach(n => { if (!o.r.some(r => r[0] === n)) o.r.push([n, 0, '', '', '']); });
   }
   const d = fromDs(o.d), rs = o.r || [];
-  if (!confirm(`${label(d)} [${o.p}] ${rs.length}명 (O ${rs.filter(x => x[1]).length}명) 을 합칠까요?`)) return;
+  if (!confirm(`${label(d)} [${o.p}] ${rs.length}명 (O ${rs.filter(x => x[1]).length}명) 을 합칠까요?${o.unk ? `\n\n※ 이 폰 명단에 없는 사람 ${o.unk}명은 빠집니다 — 명단 링크를 다시 받거나 보낸 사람에게 확인하세요` : ''}`)) return;
   if (dirty && ds(d) !== ds(cur) && confirm(`${label(cur)} 바뀐 내용을 먼저 저장할까요?`)) save();
   showDate(d);
   const by = {}; day.rows.forEach(r => by[r.name] = r);
@@ -784,7 +832,7 @@ function pasteSheet() {
     <div class="btnrow"><button class="btn2" id="pCancel">취소</button><button class="btn1" id="pOk">합치기</button></div>`);
   $('pCancel').onclick = closeSheet;
   $('pOk').onclick = async () => { const t = $('pTxt').value; closeSheet(); if (!(await handleLink(t))) toast('링크를 찾지 못했습니다'); };
-  navigator.clipboard?.readText?.().then(t => { if (/#[rzm]=/.test(t) && !$('pTxt').value) $('pTxt').value = t; }).catch(() => {});
+  navigator.clipboard?.readText?.().then(t => { if (/#[rzmk]=/.test(t) && !$('pTxt').value) $('pTxt').value = t; }).catch(() => {});
 }
 
 /* ───── 엑셀(xlsx) 읽기 — 브라우저 내장 압축풀기 ───── */
