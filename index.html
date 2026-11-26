@@ -189,7 +189,7 @@ input,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.7.6';
+const APP_VERSION = 'v1.7.8';
 // 카톡 안 브라우저로 열리면 자료가 따로 저장되므로 → 폰 기본 브라우저(크롬)로 넘김
 const inKakao = /KAKAOTALK/i.test(navigator.userAgent) && /#[rzmk]=/.test(location.hash);
 if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
@@ -769,7 +769,12 @@ async function sendPart() {
   const url = linkBase() + '#k=' + packK(o);
   const on = rows.filter(r => r.on);
   const text = `[연장 ${part}] ${cur.getMonth() + 1}/${cur.getDate()} O ${on.length}명\n${url}`;   // 핵심만 : 한 줄 + 링크
-  shareText(text, `📨 ${part} → 집계자에게 보내기`);
+  // 미리보기 없이 바로 공유창 (링크 만들기가 기다림 없이 끝나서 누른 직후 바로 열 수 있음) — 공유창 맨 위에 집계자 방이 뜸
+  // 공유창을 못 열면 예전처럼 글 보여 주기 + [카톡 보내기]/[복사]
+  const fallback = () => shareText(text, `📨 ${part} → 집계자에게 보내기`);
+  if (!navigator.share) { fallback(); return; }
+  try { navigator.share({text}).then(() => toast('보냈습니다')).catch(e => { if (e.name !== 'AbortError') fallback(); }); }
+  catch { fallback(); }
 }
 function receivePart(o) {
   if (o.v === 2 || o.v === 3) {   // 짧은 형식 → v3 : 보낸 쪽 공통 시간·작업(t·w)으로 / v2(옛 링크) : 이 폰 명단 기본값으로
